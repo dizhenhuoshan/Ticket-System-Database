@@ -5,7 +5,7 @@ TreeNode<KeyType>::TreeNode(bool leaf) {
     parent = nullptr;
     keys.clear();
     vals.clear();
-    children.clear();
+    childs.clear();
     next = nullptr;
 
     isLeaf = leaf;
@@ -16,7 +16,7 @@ TreeNode<KeyType>::TreeNode(const TreeNode &other) {
     parent = other.parent;
     keys = other.keys;
     vals = other.vals;
-    children = other.children;
+    childs = other.childs;
     next = other.next;
     isLeaf = other.isLeaf;
 }
@@ -43,14 +43,14 @@ template <class KeyType>
 void TreeNode<KeyType>::clear() {
     keys.clear();
     vals.clear();
-    children.clear();
+    childs.clear();
 }
 
 template <class KeyType>
 size_t TreeNode<KeyType>::search_child(TreeNode *child) {
     size_t i = 0;
-    while(i < children.size() && children[i] != child) ++i;
+    while(i < childs.size() && childs[i] != child) ++i;
 
-    if(i == children.size()) throw "unmatched father and children";
+    if(i == childs.size()) throw "unmatched father and childs";
     else return i;
 }

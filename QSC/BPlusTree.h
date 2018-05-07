@@ -22,7 +22,7 @@ typedef int offsetNumber;
  * which means degree is BPlustree's feature.
  *
  * if we do this, data type will be heterogeneous, and hard to manage.
- * information about keys, vals, and children are well encapsulated inside <vector> class.
+ * information about keys, vals, and childs are well encapsulated inside <vector> class.
  * we omit unnecessary fields. */
 
 template <class KeyType>
@@ -40,8 +40,8 @@ private:
     Node *root;
     /**
      * leaf node key number range: [ceil((degree - 1) / 2), degree - 1]
-     * branch node children range: [ceil(degree / 2), degree]
-     * branch node key number = children number - 1 */
+     * branch node childs range: [ceil(degree / 2), degree]
+     * branch node key number = childs number - 1 */
     int degree;
 
     /**
@@ -82,12 +82,12 @@ private:
 
      /** sub-function used by insert_in_parent()
       *
-      * when branch's children exceeds degree, it has to be split into two,
-      * in which case children number will be exactly 'degree + 1'.
+      * when branch's childs exceeds degree, it has to be split into two,
+      * in which case childs number will be exactly 'degree + 1'.
       *
-      * the first node receives ceil(degree / 2) children.
+      * the first node receives ceil(degree / 2) childs.
       * the second node receives the rest of them.
-      * we regard children (pointers) as primary concern. Keys between them are sort of like bi-products
+      * we regard childs (pointers) as primary concern. Keys between them are sort of like bi-products
       *
       * note that the very key between
       * "the right most pointer in first node" and "the left most pointer in second node"
@@ -106,16 +106,32 @@ private:
      * which is sadly not true for branch-branch case */
      void insert_in_parent(Node *p, KeyType K, Node *p_next);
 
+     void erase_branch(Node *p, KeyType K, Node *child);
+     void erase_leaf(Node *p, KeyType K);
+
+     /**
+      * sub-function sued by erase_branch and erase_leaf, get one of
+      * the two siblings of p which has more pointers
+      *
+      * p is assured to have siblings because of the condition given by B-Plus Tree*/
+     Node *getSibling(Node *p);
 public:
     explicit BPlusTree(int degree);
 
-    // find: unique key, find_first: duplicated key
+    /// find: unique key, find_first: duplicated key
     searchNodeParse find(KeyType K);
     searchNodeParse find_first(KeyType K) {
         return find_first(root, K);
     }
 
     void insert(KeyType K, offsetNumber val);
+
+    /**
+     * this erase operation can only adapt to unique key situation
+     *
+     * erase is an iterative process which goes bottom up, and uses erase_leaf first,
+     * which then invokes erase_branch to do back track. */
+    void erase(KeyType K);
 };
 
 #include "BPlusTree.cpp"

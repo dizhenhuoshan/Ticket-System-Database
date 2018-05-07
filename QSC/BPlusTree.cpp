@@ -1,6 +1,14 @@
 #include "BPlusTree.h"
 #include <cmath>
 
+template <class T>
+void swap(T &a, T &b) {
+    T tmp(a);
+    a = b;
+    b = tmp;
+}
+
+
 template <class KeyType>
 BPlusTree<KeyType>::BPlusTree(int degree) {
     root = nullptr;
@@ -15,13 +23,13 @@ typename BPlusTree<KeyType>::Node* BPlusTree<KeyType>::search_to_leaf(KeyType K)
         int i = cur->search_sup(K);
 
         // fail to find, means K is larger than max
-        if(i == -1) cur = cur->children.back();
+        if(i == -1) cur = cur->childs.back();
             // have found
             /* We do things in this manner because the same scheme can be generalized
              * to cases with duplicated keys. */
         else {
-            if(K == cur->keys[i]) cur = cur->children[i + 1];
-            else cur = cur->children[i];
+            if(K == cur->keys[i]) cur = cur->childs[i + 1];
+            else cur = cur->childs[i];
         }
     }
 
@@ -47,7 +55,6 @@ typename BPlusTree<KeyType>::searchNodeParse BPlusTree<KeyType>::find(KeyType K)
     return ret;
 }
 
-
 template <class KeyType>
 typename BPlusTree<KeyType>::searchNodeParse BPlusTree<KeyType>::find_first(BPlusTree<KeyType>::Node *N, KeyType K) {
     Node *deeper;
@@ -59,7 +66,7 @@ typename BPlusTree<KeyType>::searchNodeParse BPlusTree<KeyType>::find_first(BPlu
 
         // search fails
         if(i == -1) {
-            deeper = N->children.back();
+            deeper = N->childs.back();
             return find_first(deeper, K);
         }
 
@@ -67,17 +74,17 @@ typename BPlusTree<KeyType>::searchNodeParse BPlusTree<KeyType>::find_first(BPlu
         else {
             if(K == N->keys[i]) {
                 searchNodeParse ret;
-                deeper = N->children[i];
+                deeper = N->childs[i];
 
                 ret = find_first(deeper, K);
                 if(!ret.ifFound) {
-                    deeper = N->children[i + 1];
+                    deeper = N->childs[i + 1];
                     return find_first(deeper, K);
                 }
                 else return ret;
             }
             else {
-                deeper = N->children[i];
+                deeper = N->childs[i];
                 return find_first(deeper, K);
             }
         }
@@ -167,10 +174,10 @@ KeyType BPlusTree<KeyType>::split_branch(BPlusTree<KeyType>::Node *B, BPlusTree<
     size_t mid = (size_t)ceil(degree / 2);
     KeyType mid_key = tmp->keys[mid - 1];
 
-    B->children.assign(tmp->children.begin(), tmp->children.begin() + mid);
+    B->childs.assign(tmp->childs.begin(), tmp->childs.begin() + mid);
     B->keys.assign(tmp->keys.begin(), tmp->keys.begin() + mid - 1);
 
-    B_next->children.assign(tmp->children.begin() + mid, tmp->children.end());
+    B_next->childs.assign(tmp->childs.begin() + mid, tmp->childs.end());
     B_next->keys.assign(tmp->keys.begin() + mid, tmp->keys.end());
 
     return mid_key;
@@ -181,8 +188,8 @@ void BPlusTree<KeyType>::insert_in_parent(BPlusTree<KeyType>::Node *p, KeyType K
     // new root is needed
     if(root == p) {
         root = new Node(false);
-        root->children.push_back(p);
-        root->children.push_back(p_next);
+        root->childs.push_back(p);
+        root->childs.push_back(p_next);
         root->keys.push_back(K);
         p->parent = p_next->parent = root;
         return;
@@ -192,11 +199,11 @@ void BPlusTree<KeyType>::insert_in_parent(BPlusTree<KeyType>::Node *p, KeyType K
     p_next->parent = fa;
     /* insert into parent first, regardless of whether there's empty slot available */
     size_t p_idx = fa->search_child(p);
-    fa->children.insert(fa->children.begin() + p_idx + 1, p_next);      // insert p_next after p's index
+    fa->childs.insert(fa->childs.begin() + p_idx + 1, p_next);      // insert p_next after p's index
     fa->keys.insert(fa->keys.begin() + p_idx, K);                       // there's one slot shift in keys
 
-    // check whether split is needed, distribute keys and children
-    if(fa->children.size() > degree) {
+    // check whether split is needed, distribute keys and childs
+    if(fa->childs.size() > degree) {
         Node *tmp = new Node(*fa);
         Node *fa_next(false);
         KeyType mid_key;
@@ -206,5 +213,181 @@ void BPlusTree<KeyType>::insert_in_parent(BPlusTree<KeyType>::Node *p, KeyType K
         insert_in_parent(fa, mid_key, fa_next);
 
         delete tmp;
+    }
+}
+
+template <class KeyType>
+void BPlusTree<KeyType>::erase(KeyType K) {
+    Node *leaf = search_to_leaf(K);
+    erase_leaf(leaf, K);
+}
+
+template <class KeyType>
+BPlusTree<KeyType>::Node * BPlusTree<KeyType>::getSibling(BPlusTree<KeyType>::Node *p) {
+    Node *fa = p->parent;
+    size_t child_idx = fa->search_child(p);
+
+    // we are left with no choice
+    if(child_idx == 0) return fa->childs[1];
+    else if(child_idx == fa->childs.size() - 1) return fa->childs[fa->childs.size() - 2];
+    else {
+        Node *child1 = fa->childs[child_idx - 1];
+        Node *child2 = fa->childs[child_idx + 1];
+
+        /** because this function is generic to both branch and leaf,
+         * we compare their key numbers, which is a field held by both of them */
+        if(child1->keys.size() > child2->keys.size()) return child1;
+        else return child2;
+    }
+}
+
+
+template <class KeyType>
+void BPlusTree<KeyType>::erase_leaf(BPlusTree<KeyType>::Node *p, KeyType K) {
+    int K_idx = p->search_exact(K);
+
+    p->keys.erase(p->keys.begin() + K_idx);
+    p->vals.erase(p->vals.begin() + K_idx);
+
+    // if node is too empty, do something
+    if(p->keys.size() < (size_t) ceil((degree - 1) / 2)) {
+        Node *sbl = getSibling(p);
+
+        // sbl and p are both children in a branch node, find the key between them.
+        size_t p_idx = p->parent->search_child(p);
+        size_t sbl_idx = p->parent->search_child(sbl);
+
+        KeyType K_bt = p->parent->keys[min(p_idx, sbl_idx)];    // K_bt means key in between
+        int key_pos = p->parent->search_exact(K_bt);
+
+        // p and sibling can be put in one single node
+        if(p->keys.size() + sbl->keys.size() < degree) {
+            /** make sure that sibling is in front of p, we can do this because
+             * merging two nodes makes they symmetric to each other. They are
+             * they satisfy commutative law */
+            if(p_idx < sbl_idx) swap(sbl, p);
+
+            for(KeyType key : p->keys) sbl->keys.push_back(key);
+            for(offsetNumber val : p->vals) sbl->vals.push_back(val);
+
+            sbl->next = p->next;
+
+            erase_branch(p->parent, K_bt, p);   // delete current node p in parent node
+            delete p;
+        }
+        // redistribution, borrow a key from sibling to p.
+        else {
+            if(sbl_idx < p_idx) {
+                // borrow last key from sibling, record key position in father.
+                KeyType key_shift = sbl->keys.back();
+                offsetNumber val_shift = sbl->vals.back();
+
+                // remove them
+                sbl->keys.pop_back(), sbl->vals.pop_back();
+
+                // insert shifted key in front of p
+                p->keys.insert(p->keys.begin(), key_shift);
+                p->vals.insert(p->vals.begin(), val_shift);
+
+                // change key in father node
+                p->parent->keys[key_pos] = p->keys[0];
+            }
+            // symmetric situation where sibling is to the right of p
+            else {
+                // borrow first key from sibling
+                KeyType key_shift = sbl->keys.front();
+                offsetNumber val_shift = sbl->vals.front();
+
+                // remove them
+                sbl->keys.erase(sbl->keys.begin());
+                sbl->vals.erase(sbl->vals.begin());
+
+                // insert it in back of p
+                p->keys.push_back(key_shift);
+                p->vals.push_back(val_shift);
+
+                // change key in father node
+                p->parent->keys[key_pos] = sbl->keys[0];
+            }
+        }
+    }
+}
+
+/// this function is similar to erase_leaf, but we separate it out for clarity.
+template <class KeyType>
+void BPlusTree<KeyType>::erase_branch(BPlusTree<KeyType>::Node *p, KeyType K, BPlusTree<KeyType>::Node *child) {
+    int K_idx = p->search_exact(K);
+    size_t child_idx = p->search_child(child);
+
+    p->keys.erase(p->keys.begin() + K_idx);
+    p->childs.erase(p->childs.begin() + child_idx);
+
+    // switch root
+    if(p == root && p->childs.size() == 1) {
+        root = p->childs[0];
+        p->childs[0]->parent = nullptr;
+        delete p;
+    }
+    // if p become too empty, note that root node is a special case
+    else if(p != root && p->keys.size() < (size_t)ceil(degree / 2)){
+        Node *sbl = getSibling(p);
+
+        // sbl and p are both children in a branch node, find the key between them.
+        size_t p_idx = p->parent->search_child(p);
+        size_t sbl_idx = p->parent->search_child(sbl);
+
+        KeyType K_bt = p->parent->keys[min(p_idx, sbl_idx)];    // K_bt means key in between
+        int key_pos = p->parent->search_exact(K_bt);
+
+        // p and sibling can be put in one single node
+        if(p->keys.size() + sbl->keys.size() <= degree) {
+            /** make sure that sibling is in front of p, we can do this because
+             * merging two nodes makes they symmetric to each other. They are
+             * they satisfy commutative law */
+            if(p_idx < sbl_idx) swap(sbl, p);
+
+            // append
+            sbl->keys.push_back(K_bt);
+            for(KeyType key : p->keys) sbl->keys.push_back(key);
+            for(Node *son : p->childs) sbl->childs.push_back(son);
+
+            erase_branch(p->parent, K_bt, p);   // delete current node p in parent node
+            delete p;
+        }
+        // redistribution, borrow a key from sibling to p.
+        else {
+            if(sbl_idx < p_idx) {
+                // borrow last key from sibling, record key position in father.
+                KeyType key_shift = sbl->keys.back();
+                Node *child_shift = sbl->childs.back();
+
+                // remove them
+                sbl->keys.pop_back(), sbl->childs.pop_back();
+
+                // insert shifted key in front of p
+                p->keys.insert(p->keys.begin(), K_bt);
+                p->childs.insert(p->childs.begin(), child_shift);
+
+                // change key in father node
+                p->parent->keys[key_pos] = key_shift;
+            }
+            // symmetric situation where sibling is to the right of p
+            else {
+                // borrow first key from sibling
+                KeyType key_shift = sbl->keys.front();
+                Node *child_shift = sbl->childs.front();
+
+                // remove them
+                sbl->keys.erase(sbl->keys.begin());
+                sbl->childs.erase(sbl->childs.begin());
+
+                // insert it in back of p
+                p->keys.push_back(K_bt);
+                p->childs.push_back(child_shift);
+
+                // change key in father node
+                p->parent->keys[key_pos] = key_shift;
+            }
+        }
     }
 }

@@ -12,7 +12,7 @@ public:
     TreeNode <KeyType> *parent;
     vector <KeyType> keys;      // keys
     vector <offsetNumber> vals; // offsetNumber leads to record
-    vector <TreeNode *> children;
+    vector <TreeNode *> childs;
     TreeNode <KeyType> *next;
 
     bool isLeaf;
