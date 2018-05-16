@@ -26,13 +26,13 @@ namespace sjtu {
         }
 
         void push_back(const ElemType &elem) {
-            if(len == mallocSize) std::cerr << "vector is full" << std::endl;
+            // if(len == mallocSize) std::cerr << "vector is full" << std::endl;
             arr[len++] = elem;
         }
 
         void insert(const short &pos, const ElemType &elem) {
-            if(pos > len || pos < 0 || len == mallocSize)
-                std::cerr << "insert error" << std::endl;
+//            if(pos > len || pos < 0 || len == mallocSize)
+//                std::cerr << "insert error" << std::endl;
 
             for (int i = len; i > pos; --i)
                 arr[i] = arr[i - 1];
@@ -41,8 +41,8 @@ namespace sjtu {
         }
 
         void erase(const short &pos) {
-            if(pos >= len || pos < 0)
-                fprintf(stderr, "invalid erase position. pos: %d, len: %d\n", pos, len);
+//            if(pos >= len || pos < 0)
+//                fprintf(stderr, "invalid erase position. pos: %d, len: %d\n", pos, len);
 
             for(short i = pos; i < len - 1; ++i)
                 arr[i] = arr[i+1];              // a[len-2] <-- a[len-1]
@@ -50,8 +50,10 @@ namespace sjtu {
         }
 
         void pop_back() {
+            /*
             if(len == 0)
                 fprintf(stderr, "pop empty vector\n");
+            */
             --len;
         }
 
@@ -64,12 +66,12 @@ namespace sjtu {
         }
 
         ElemType &back() {
-            if(len == 0) std::cerr << "back empty vector." << std::endl;
+            // if(len == 0) std::cerr << "back empty vector." << std::endl;
             return arr[len-1];
         }
 
         ElemType &front() {
-            if(len == 0) std::cerr << "front empty vector." << std::endl;
+            // if(len == 0) std::cerr << "front empty vector." << std::endl;
             return arr[0];
         }
 
@@ -85,16 +87,19 @@ namespace sjtu {
         }
 
         ElemType& operator[] (const short &pos) {
+            /*
             if(pos < 0 || pos >= len)
                 std::cerr << "vector out of bound" << std::endl;
+            */
             return arr[pos];
         }
 
         /** make current vector a sub-vector of another vector. */
         void assign(const vector<ElemType> &other, const short &left, const short &right) {
+            /*
             if(left < 0 || right > other.size() || left > right)
                 std::cerr << "assign out of range" << std::endl;
-
+            */
             for(int i = left; i < right; ++i) {
                 arr[i-left] = other.arr[i];
             }

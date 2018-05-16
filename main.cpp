@@ -40,6 +40,7 @@ int main() {
     ///st = t.get_time();
     sjtu::UniqueBPlusTree<int, sjtu::Train_id_Key> bp("test6");
     bp.open_file();
+<<<<<<< HEAD
     for(int i = 0; i < 100000; ++i) {
         bp.insert(i, sjtu::Train_id_Key("test file"));
         ///cout << bp.find(i).get_train_id() << '\n';
@@ -53,6 +54,15 @@ int main() {
     //cout << et - st << endl;
     //注意一下下，注释尽量写英文，因为中文注释在mac和linux下互通，但是在win下是不能看的，因为编码问题。
     //另外，测试时间可用命令 time ./****来写， mac下应该也有类似的命令
+=======
+    for(int i = 0; i < 1000000; ++i) {
+        bp.insert(i, i + 0.5);
+    }
+    bp.close_file();
+    et = t.get_time();
+    cout << et - st << endl;
+
+>>>>>>> 4e6586d24ffa045a9e83f678cd54245397d0c76c
 
     return 0;
 }

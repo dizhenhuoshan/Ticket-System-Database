@@ -3,7 +3,6 @@
 
 #include <queue>
 
-#include <string>
 #include "TreeNode.h"
 #include "BPlusTree.h"
 #include "constant.h"
@@ -26,7 +25,7 @@ namespace sjtu {
     private:
         typedef TreeNode<KeyType, ValType> Node;
 
-        std::string filename;
+        char filename[50];
         FILE *fp;
 
         bool isOpened;              /// has file pointer opened file.
@@ -46,7 +45,7 @@ namespace sjtu {
         /**
          * try to open file, if fail, return false. */
         bool exist() {
-            fp = fopen(filename.c_str(), "r");
+            fp = fopen(filename, "r");
             if(fp == nullptr)
                 return false;
             else {
@@ -59,7 +58,7 @@ namespace sjtu {
          * create database file, assume file non-exist.
          * write in some basic information, including info for tree and node. */
         void createFile() {
-            fp = fopen(filename.c_str(), "w");
+            fp = fopen(filename, "w");
 
             root_off = head_off = tail_off = -1;
             append_off = 0;
@@ -75,10 +74,10 @@ namespace sjtu {
         void init() {
             if(!exist()) {
                 createFile();   // fields are init(ed) inside.
-                fp = fopen(filename.c_str(), "r+");
+                fp = fopen(filename, "r+");
             }
             else {
-                fp = fopen(filename.c_str(), "r+");
+                fp = fopen(filename, "r+");
                 fread(&root_off, sizeof(int), 1, fp);
                 fread(&head_off, sizeof(int), 1, fp);
                 fread(&tail_off, sizeof(int), 1, fp);
@@ -88,7 +87,7 @@ namespace sjtu {
 
     public:
         BufferManager() {
-            filename.clear();
+            filename[0] = '\0';
             isOpened = false;
             root_off = head_off = tail_off = -1;
             append_off = -1;        /// -1 is a special value for append_off under closed file condition.
@@ -103,11 +102,11 @@ namespace sjtu {
 
         /**
          * associate filename with BufferManager. */
-        void set_fileName(const std::string &fname) {
-            filename = fname;
+        void set_fileName(const char *fname) {
+            strcpy(filename, fname);
         }
         void clear_fileName() {
-            filename.clear();
+            filename[0] = '\0';
         }
 
         /**
@@ -117,7 +116,7 @@ namespace sjtu {
          * file. They need writing into, of course. */
          bool open_file() {
             if(isOpened) {
-                std::cerr << "buffermanager open an opened file" << std::endl;
+                // std::cerr << "buffermanager open an opened file" << std::endl;
                 return false;
             }
             else {
@@ -128,7 +127,7 @@ namespace sjtu {
          }
          bool close_file() {
              if(!isOpened) {
-                 std::cerr << "buffermanager close an closed file" << std::endl;
+                 // std::cerr << "buffermanager close an closed file" << std::endl;
                  return false;
              }
              else {
@@ -175,7 +174,7 @@ namespace sjtu {
          * if fail, return false.
          * this function seems unnecessary. */
         bool get_next_block(const Node &cur, Node &ret) {
-            if(!cur.isLeaf && cur.next != -1) std::cerr << "branch node has next!" << std::endl;
+            // if(!cur.isLeaf && cur.next != -1) std::cerr << "branch node has next!" << std::endl;
 
             if(cur.next == -1)
                 return false;
