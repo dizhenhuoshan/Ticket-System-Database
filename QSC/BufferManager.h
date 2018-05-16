@@ -2,7 +2,7 @@
 #define DATABASE_BUFFERMANAGER_H
 
 #include <queue>
-
+#include <cstring>
 #include "TreeNode.h"
 #include "BPlusTree.h"
 #include "constant.h"
