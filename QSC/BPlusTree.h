@@ -24,8 +24,11 @@ namespace sjtu {
         * branch node childs range: [ceil(degree / 2), degree]
         * branch node key number = childs number - 1 */
         int branch_degree, leaf_degree;
-
         int K_byte, V_byte;
+
+        Node pool[50];
+    public:
+        int cnt;
 
     private:
 
@@ -45,7 +48,9 @@ namespace sjtu {
                 }
             }
             else {
-                Node ch;
+                Node &ch = pool[cnt++];
+                ch.clear();
+
                 short ch_pos = find_child(cur, K, ch);
 
                 bool erased;
@@ -53,8 +58,10 @@ namespace sjtu {
                 erased = erase_node(ch, K);
 
                 // 删除未成功。
-                if(!erased)
+                if(!erased) {
+                    cnt--;
                     return false;
+                }
 
                 // 删除成功。记得写入。
                 // 按照不同类型，分别处理当前树枝和儿子。
@@ -62,11 +69,12 @@ namespace sjtu {
                     // 如果不太空，直接返回。
                     if(ch.keys.size() >= (short) ceil(leaf_degree / 2.0)) {
                         bm.write_block(ch);
+                        cnt--;
                         return true;
                     }
                     // 如果太空。
                     else {
-                        Node sbl;
+                        Node &sbl = pool[cnt++];
                         short sbl_pos;
                         short key_pos;
                         KeyType K_bt;
@@ -123,6 +131,7 @@ namespace sjtu {
                             bm.write_block(*r_node);
 
                             // 删除成功。
+                            cnt -= 2;
                             return true;
                         }
                         // 借用一个，重新分配。
@@ -148,6 +157,7 @@ namespace sjtu {
                                 bm.write_block(sbl);
 
                                 // 删除成功。
+                                cnt -= 2;
                                 return true;
                             }
                             // symmetric situation where sibling is to the right of p.
@@ -172,6 +182,7 @@ namespace sjtu {
                                 bm.write_block(sbl);
 
                                 // 删除成功。
+                                cnt -= 2;
                                 return true;
                             }
                         }
@@ -182,12 +193,13 @@ namespace sjtu {
                     // 如果不太空，直接返回。
                     if(ch.childs.size() >= (short) ceil(branch_degree / 2.0)) {
                         bm.write_block(ch);
+                        cnt--;
                         return true;
                     }
                     // 如果太空。
                     else {
                         // 找到兄弟。
-                        Node sbl;
+                        Node &sbl = pool[cnt++];
                         short sbl_pos;
                         short key_pos;
                         KeyType K_bt;
@@ -239,6 +251,7 @@ namespace sjtu {
                             bm.write_block(*r_node);
 
                             // 删除成功。
+                            cnt -= 2;
                             return true;
                         }
                             // 借用一个，重新分配。
@@ -264,6 +277,7 @@ namespace sjtu {
                                 bm.write_block(sbl);
 
                                 // 删除成功。
+                                cnt -= 2;
                                 return true;
                             }
                                 // symmetric situation where sibling is to the right of p.
@@ -288,6 +302,7 @@ namespace sjtu {
                                 bm.write_block(sbl);
 
                                 // 删除成功。
+                                cnt -= 2;
                                 return true;
                             }
                         }
@@ -300,7 +315,8 @@ namespace sjtu {
         #ifdef LOG
             std::cout << "split_branch" << std::endl;
         #endif
-            Node tmp(B);
+            Node &tmp = pool[cnt++];
+            tmp = B;
             B.clear_content();
 
             short mid = (short) ceil(branch_degree / 2.0);
@@ -312,6 +328,7 @@ namespace sjtu {
             B_next.childs.assign(tmp.childs, mid, tmp.childs.size());
             B_next.keys.assign(tmp.keys, mid, tmp.keys.size());
 
+            cnt--;
             return mid_key;
         }
 
@@ -330,7 +347,8 @@ namespace sjtu {
         #ifdef LOG
             std::cout << "split_leaf" << std::endl;
         #endif
-            Node tmp(L);
+            Node &tmp = pool[cnt++];
+            tmp = L;
             L.clear_content();
 
             short mid = (short) std::ceil((leaf_degree) / (2.0));
@@ -340,6 +358,8 @@ namespace sjtu {
 
             L_next.keys.assign(tmp.keys, mid, tmp.keys.size());
             L_next.vals.assign(tmp.vals, mid, tmp.vals.size());
+
+            cnt--;
         }
 
 
@@ -376,7 +396,7 @@ namespace sjtu {
             if (cur.isLeaf) {
                 return insert_in_leaf(cur, K, V);       // return false is exists.
             } else {
-                Node ch;
+                Node &ch = pool[cnt++];
                 bool success;
 
                 // 向下找子。
@@ -387,19 +407,22 @@ namespace sjtu {
 
                 // 处理儿子和自己。
                 // 1. 插入未成功。
-                if (!success)
+                if (!success) {
+                    cnt--;
                     return false;
+                }
                 // 2. 插入成功。
                 // （按照不同的类型，分别处理儿子）
                 if (ch.isLeaf) {
                     // 如果不需要分裂，直接返回。
                     if (ch.keys.size() <= leaf_degree) {
                         bm.write_block(ch);
+                        cnt--;
                         return true;
                     }
                         // 如果需要分裂，处理儿子和自己。
                     else {
-                        Node newLeaf;
+                        Node &newLeaf = pool[cnt++];
                         bm.append_block(newLeaf, true); // get a new leaf node to the right of cur.
 
                         newLeaf.next = ch.next;    // maintain address info.
@@ -413,6 +436,8 @@ namespace sjtu {
 
                         bm.write_block(ch);
                         bm.write_block(newLeaf);
+
+                        cnt -= 2;
                         return true;
                     }
                 }
@@ -421,12 +446,13 @@ namespace sjtu {
                     // 如果不需要分裂，直接返回。
                     if (ch.childs.size() <= branch_degree) {
                         bm.write_block(ch);
+                        cnt--;
                         return true;
                     }
                         // 如果需要分裂，处理儿子和自己。
                     else {
                         KeyType mid_key;
-                        Node newBranch;
+                        Node &newBranch = pool[cnt++];
                         bm.append_block(newBranch, false);
 
                         mid_key = split_branch(ch, newBranch);
@@ -435,6 +461,7 @@ namespace sjtu {
 
                         bm.write_block(ch);
                         bm.write_block(newBranch);
+                        cnt -= 2;
                         return true;
                     }
                 }
@@ -474,19 +501,19 @@ namespace sjtu {
             bm.set_fileName(fname);
 
             K_byte = sizeof(KeyType), V_byte = sizeof(ValType);
-
+            cnt = 0;
             /**
              * tree utility is stored in file head, which is followed by a leaf node (the first node in an file is always leaf node).
              * Note key and child number differ by 1 in branch. */
             leaf_degree = (blockSize - tree_utility_byte - node_utility_byte) / (K_byte + V_byte);
             branch_degree = (blockSize - node_utility_byte + K_byte) / (sizeof(offsetNumber) + K_byte);
 
-        #ifdef LOG
+/*        #ifdef LOG
             std::cout << "leaf degree: " << leaf_degree << " branch degree: " << branch_degree << std::endl;
-        #endif
+        #endif*/
 
-            if (leaf_degree == 0)
-                std::cerr << "leaf degree is 0" << std::endl;
+/*            if (leaf_degree == 0)
+                std::cerr << "leaf degree is 0" << std::endl;*/
         }
 
         ~UniqueBPlusTree() {
@@ -509,10 +536,15 @@ namespace sjtu {
         }
 
         ValType find(const KeyType &K) {
-            Node ret;
+//            if(cnt >= 20)
+//                std::cerr << "pool is full" << std::endl;
+
+            Node &ret = pool[cnt++];
             search_to_leaf(K, ret);
 
             int i = ret.search_exact(K);
+
+            --cnt;              // 手动析构。
             if (i == -1)     /// return default when unfind.
                 return ValType();
             else
@@ -522,16 +554,20 @@ namespace sjtu {
         /**
          * overwrite existing key, return false if key isn't found. */
         bool modify(KeyType K, ValType V) {
-            Node leafNode;
+            Node &leafNode = pool[cnt++];
             short keyPos;
 
             search_to_leaf(K, leafNode);
             keyPos = leafNode.search_exact(K);
-            if (keyPos == -1)                // fail to find.
+            // fail to find.
+            if (keyPos == -1) {
+                cnt--;
                 return false;
+            }
             else {
                 leafNode.vals[keyPos] = V;  // modify and write back.
                 bm.write_block(leafNode);
+                cnt--;
                 return true;
             }
         }
@@ -544,7 +580,7 @@ namespace sjtu {
             cnt++;
             std::cout << std::endl << cnt << " insert log starts: " << std::endl;
         #endif
-            Node root;
+            Node &root = pool[cnt++];
             bool success;
 
             if (bm.root_off == -1) {
@@ -559,20 +595,24 @@ namespace sjtu {
                 // maintain a list.
                 bm.head_off = root.addr;
                 bm.tail_off = root.addr;
+                cnt--;
                 return true;
             }
 
             bm.get_root(root);
             success = insert_node(root, K, V);
 
-            if (!success)
+            if (!success) {
+                cnt--;
                 return false;
+            }
                 // insert successfully, may need split and increase tree height.
             else {
                 if (root.isLeaf) {
                     // 如果出事了，增加树高。更新一些东西。
                     if (root.keys.size() > leaf_degree) {
-                        Node newLeaf, newRoot;
+                        Node &newLeaf = pool[cnt++];
+                        Node &newRoot = pool[cnt++];
 
                         bm.append_block(newLeaf, true);
                         split_leaf(root, newLeaf);
@@ -592,15 +632,20 @@ namespace sjtu {
                         bm.write_block(root);
                         bm.write_block(newLeaf);
                         bm.write_block(newRoot);
+                        cnt -= 3;
+                        return true;
                     }
                     // 如果没出事，写入根节点。
                     else {
                         bm.write_block(root);
+                        cnt--;
+                        return true;
                     }
                 } else {
                     // 如果出事了，增加树高。
                     if (root.childs.size() > branch_degree) {
-                        Node newBranch, newRoot;
+                        Node &newBranch = pool[cnt++];
+                        Node &newRoot = pool[cnt++];
                         KeyType mid_key;
 
                         bm.append_block(newBranch, false);
@@ -615,11 +660,17 @@ namespace sjtu {
                         bm.write_block(root);
                         bm.write_block(newBranch);
                         bm.write_block(newRoot);
+                        cnt -= 3;
+                        return true;
                     }
-                    // 如果没出事，写入根节点。
-                    bm.write_block(root);
+                    else {
+                        // 如果没出事，写入根节点。
+                        bm.write_block(root);
+                        cnt--;
+                        return true;
+                    }
+
                 }
-                return true;
             }
         }
 
@@ -632,17 +683,19 @@ namespace sjtu {
          * if erased K is not found, return false. */
         bool erase(KeyType K) {
             if (bm.root_off == -1) {
-                std::cerr << "erase empty B plus tree" << std::endl;
+                // std::cerr << "erase empty B plus tree" << std::endl;
                 return false;
             }
 
-            Node root;
+            Node &root = pool[cnt++];
             bool erased;
             bm.get_root(root);
             erased = erase_node(root, K);
 
-            if(!erased)
+            if(!erased) {
+                cnt--;
                 return false;
+            }
             // 看看root要不要更新呢？
             else {
                 // 根节点——叶结点为空时，空置B+树。
@@ -653,21 +706,23 @@ namespace sjtu {
                 }
                 // 根节点——树枝结点只有一个儿子时，减小树高。
                 else {
-                    #ifdef DEBUG
-                    if(root.childs.size() < 1)
-                        std::cerr << "root child number invalid!" << std::endl;
-                    #endif
+//                    #ifdef DEBUG
+//                    if(root.childs.size() < 1)
+//                        std::cerr << "root child number invalid!" << std::endl;
+//                    #endif
                     if(root.childs.size() == 1) {
                         bm.root_off = root.childs[0];
                     }
                 }
                 bm.write_block(root);
+                cnt--;
                 // 删除成功。
                 return true;
             }
         }
-        #ifdef LOG
+
         /** perform a level order traversal for B tree. */
+        #ifdef LOG
         struct qElem {
             offsetNumber addr;
             int depth;
