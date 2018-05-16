@@ -2,6 +2,7 @@
 #define DATABASE_BPLUSTREE_H
 
 #include "BufferManager.h"
+#include <cstring>
 #include <cmath>
 #include <queue>
 // #define LOG 1

@@ -9,28 +9,28 @@ namespace sjtu
     class User_id_Key
     {
     private:
-        unsigned int uesr_id; //Each user must have a specific id.
+        unsigned int user_id; //Each user must have a specific id.
     public:
         User_id_Key()
         {
             user_id = -1;
         }
-        User_id_Key(const Key &other)
+        User_id_Key(const User_id_Key &other)
         {
             user_id = other.user_id;
         }
         User_id_Key(const unsigned int num):user_id(num) {}
         ~User_id_Key() {}
 
-        bool operator==(const Key &other) const
+        bool operator==(const User_id_Key &other) const
         {
             return user_id == other.user_id;
         }
-        bool operator<(const Key &other) const
+        bool operator<(const User_id_Key &other) const
         {
             return user_id < other.user_id;
         }
-        unsigned int getid() const
+        unsigned int get_user_id() const
         {
             return user_id;
         }
@@ -45,7 +45,7 @@ namespace sjtu
         {
             memset(loc, 0, sizeof(loc));
         }
-        Loc_Key(const City_Main_Key &other)
+        Loc_Key(const Loc_Key &other)
         {
             for (int i = 0; i < maxn; i++)
             {
@@ -61,13 +61,13 @@ namespace sjtu
         }
         ~Loc_Key() {}
 
-        bool operator<(const char obj[])
+        bool operator<(const Loc_Key &obj)
         {
-            return strcmp(loc, obj) < 0;
+            return strcmp(loc, obj.loc) < 0;
         }
-        bool operator==(const char obj[])
+        bool operator==(const Loc_Key &obj)
         {
-            return strcmp(loc, obj) == 0;
+            return strcmp(loc, obj.loc) == 0;
         }
         char* getloc() {return loc;}
     };
@@ -97,16 +97,29 @@ namespace sjtu
         }
         ~Train_id_Key() {}
 
-        bool operator<(const char obj[])
+        bool operator<(const Train_id_Key &obj)
         {
-            return strcmp(train_id, obj) < 0;
+            return strcmp(train_id, obj.train_id) < 0;
         }
-        bool operator==(const char obj[])
+        bool operator==(const Train_id_Key &obj)
         {
-            return strcmp(train_id, obj) == 0;
+            return strcmp(train_id, obj.train_id) == 0;
         }
         char* gettrain_id() {return train_id;}
     };
 
+    /* Buyer_id is a specific id for a buyer */
+    class Buyer_id
+    {
+    private:
+        unsigned long long buyer_id; //specific id for a ticket of a buyer
+    public:
+        Buyer_id(unsigned long long obj = 0): buyer_id(obj) {}
+        Buyer_id(const Buyer_id &other): buyer_id(other.buyer_id) {}
+        ~Buyer_id() {}
+
+        unsigned long long get_buyer_id() {return buyer_id;}
+        bool operator<(const Buyer_id &obj) {return buyer_id < obj.buyer_id;}
+    };
 };
 #endif

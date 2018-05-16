@@ -5,6 +5,7 @@
 #include "timer.h"
 #include "BPlusTree.h"
 #include "debug.h"
+#include "keys.h"
 #include <map>
 
 using namespace std;
@@ -32,21 +33,26 @@ int main() {
     }
     std::cout << std::endl;
     */
-    /*
+
     timer t;
     double st, et;
 
-    st = t.get_time();
-    sjtu::UniqueBPlusTree<int, double> bp("test6");
+    ///st = t.get_time();
+    sjtu::UniqueBPlusTree<int, sjtu::Train_id_Key> bp("test6");
     bp.open_file();
-    for(int i = 0; i < 1000000; ++i)
-        bp.insert(i, i + 0.5);
+    for(int i = 0; i < 100000; ++i) {
+        bp.insert(i, sjtu::Train_id_Key("test file"));
+        ///cout << bp.find(i).get_train_id() << '\n';
+    }
+    for (int i = 0; i < 100000; i++)
+    {
+        bp.erase(i);
+    }
     bp.close_file();
-    et = t.get_time();
-    cout << et - st << endl;
-    */
-    sjtu::debugger db;
-    db.info_test();
+    //et = t.get_time();
+    //cout << et - st << endl;
+    //注意一下下，注释尽量写英文，因为中文注释在mac和linux下互通，但是在win下是不能看的，因为编码问题。
+    //另外，测试时间可用命令 time ./****来写， mac下应该也有类似的命令
 
     return 0;
 }

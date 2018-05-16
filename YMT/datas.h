@@ -189,11 +189,14 @@ namespace sjtu
     class Buyer_Data
     {
     private:
-        int num;
+        int num; // num of the ticket
+        short date_year; //date
+        char date_month;
+        char data_day;
         char train_id[maxm];
         char from[maxm]; //departure of the ticket
         char des[maxm]; //destination of the ticket
-        char 
+        char catalog[maxc];
     };
 };
 #endif

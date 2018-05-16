@@ -22,6 +22,7 @@ namespace sjtu {
     template <class KeyType, class ValType>
     class BufferManager {
         friend class debugger;
+        friend class BPlusTree;
     private:
         typedef TreeNode<KeyType, ValType> Node;
 
