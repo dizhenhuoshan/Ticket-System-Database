@@ -3,7 +3,7 @@
 const int maxn = 41; //max length for user_name
 const int maxm = 21; //max length for usually other things
 const int maxc = 11; //max length for catalog
-const int maxe = 5; //max length for ticket types
+const int maxe = 5; //max length for ticket type
 
 namespace sjtu
 {
@@ -111,9 +111,10 @@ namespace sjtu
     class Ticket_Data
     {
     private:
+        int num;
         char statime[2]; //start time of a train on a specific station
-        char stptime[2]; //stop time of a train on a specific station
-        char stpover[2];
+        char stptime[2]; //arrive time of a train on a specific station
+        char stpover[2]; //stop time of a train on a specific station
         double price[maxe];
 
         /*Covert the time to time_string for output*/
@@ -160,6 +161,7 @@ namespace sjtu
             memset(stptime, 0, sizeof(stptime));
             memset(stpover, 0, sizeof(stpover));
             memset(price, 0, sizeof(price));
+            num = 2000;
         }
         Ticket_Data(const Train_Data &other)
         {
@@ -167,6 +169,7 @@ namespace sjtu
             memcpy(stptime, other.stptime, sizeof(statime));
             memcpy(stpover, other.stpover, sizeof(stpover));
             memcpy(price, other.price, sizeof(price));
+            num = other.num;
         }
         /* Waring: objprice must have exactly maxe elements for memcpy */
         Ticket_Data(const char start[], const char stop[], const char over[], const double objprice[])
@@ -175,28 +178,146 @@ namespace sjtu
             string_to_time(stptime, stop);
             string_to_time(stpover, over);
             memcpy(price, objprice, sizeof(objprice));
+            num = 2000;
         }
         ~Ticket_Data() {}
 
         char* get_statime() {return time_to_string(statime);}
         char* get_stptime() {return time_to_string(stptime);}
         char* get_stpover() {return time_to_string(stpover);}
+        int get_num() {return num;}
         double get_price(int num) {return price[num];}
     };
 
     /* Buyer_Data is for the ticket a user has bought */
-    /* Using Keys: user_id train_id */
+    /* Using Keys: user_id specific_rand_id */
     class Buyer_Data
     {
     private:
         int num; // num of the ticket
         short date_year; //date
         char date_month;
-        char data_day;
+        char date_day;
         char train_id[maxm];
         char from[maxm]; //departure of the ticket
         char des[maxm]; //destination of the ticket
-        char catalog[maxc];
+        char ticket_kind[maxm]; //kind of the ticket
+
+        void string_to_date(short &year; char &month; char &day; const char str[])
+        {
+            if (str[0] == 'x')
+            {
+                year = -1; month = 0; day = 0;
+            }
+            else
+            {
+                year = 0; month = 0; day = 0;
+                char *s = str;
+                while (s != '-')
+                {
+                    year = year * 10 + *s - '0';
+                    s++;
+                }
+                for (int i = 0; i < 2; i++)
+                {
+                    month = month * 10 + str[5 + i] - '0';
+                    day = day * 10 + str[8 + i] - '0';
+                }
+            }
+        }
+
+        char* date_to_string(short year; char month; char day)
+        {
+            char *tmp = new char[11];
+            char invaild[11] = "xxxx-xx-xx";
+            if (year = -1)
+            {
+                strcpy(tmp, invaild);
+                return tmp;
+            }
+            tmp[10] = '\0';
+            tmp[4] = '-'; tmp[7] = '-';
+            for (int i = 0; i < 4; i++)
+            {
+                tmp[4 - i] = year % 10 + '0';
+                year = year / 10;
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                tmp[6 - i] = month % 10 + '0';
+                tmp[9 - i] = day % 10 + '0';
+                month = month / 10;
+                day = day / 10;
+            }
+            return tmp;
+        }
+    public:
+        Buyer_Data()
+        {
+            memset(train_id, 0, sizeof(train_id));
+            memset(from, 0, sizeof(from));
+            memset(to, 0, sizeof(to));
+            memset(ticket_kind, 0, sizeof(ticket_kind));
+            num = -1;
+            date_year = 0; date_month = 0; date_day = 0;
+        }
+        Buyer_Data(const Buyer_Data &other)
+        {
+            num = other.num;
+            date_year = other.date_year;
+            date_month = other.date_month;
+            date_day = other.date_day;
+            memcpy(train_id, other.train_id, sizeof(train_id));
+            memcpy(from, other.from, sizeof(from));
+            memcpy(des, other.des, sizeof(des));
+            memcpy(ticket_kind, other.ticket_kind; sizeof(ticket_kind));
+        }
+        Buyer_Data(const int objnum, const char date[], const char objtrain_id[], const char objfrom[], const char objdes[], const char objticket_kind[])
+        {
+            num = objnum;
+            string_to_date(date_year, date_month, date_day, date);
+            memcpy(train_id, objtrain_id, sizeof(train_id));
+            memcpy(from, objfrom, sizeof(from));
+            memcpy(des, objdes, sizeof(des));
+            memcpy(ticket_kind, objticket_kind, sizeof(ticket_kind));
+        }
+        ~Buyer_Data() {}
+
+        int get_num() {return num;}
+        char* get_date() {return date_to_string(date_year, date_month, date_day);}
+        char* get_train_id() {return train_id;}
+        char* get_from() {return from;}
+        char* get_des() {return des;}
+        char* ticket_kind() {return ticket_kind;}
+    };
+
+    /* City_Data is to store information of trains in a station */
+    /* Using Keys: loc specific_rand_id */
+    class City_Data()
+    {
+    private:
+        train_id[maxm];
+        char type; // 'S' for departure; 'P' for pass; 'F' for final station; '?' for not define;
+    public:
+        City_Data()
+        {
+            memset(train_id, 0, sizeof(train_id));
+            type = '?';
+        }
+        City_Data(City_Data &other)
+        {
+            memcpy(train_id, other.train_id, sizeof(train_id));
+            type = other.type;
+        }
+        City_Data(char objtrain_id[], const char objtype)
+        {
+            memcpy(train_id, objtrain_id, sizeof(train_id));
+            type = objtype;
+        }
+        ~City_Data() {}
+
+        char* get_train_id() {return train_id;}
+        char get_type() {return type;}
     };
 };
 #endif

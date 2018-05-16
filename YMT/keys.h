@@ -5,7 +5,7 @@ const int maxn = 41;
 const int maxm = 21;
 namespace sjtu
 {
-    /** User_Key is the class for user index **/
+    /** User_id_Key is the class for user index **/
     class User_id_Key
     {
     private:
@@ -105,21 +105,8 @@ namespace sjtu
         {
             return strcmp(train_id, obj.train_id) == 0;
         }
-        char* gettrain_id() {return train_id;}
+        char* get_train_id() {return train_id;}
     };
 
-    /* Buyer_id is a specific id for a buyer */
-    class Buyer_id
-    {
-    private:
-        unsigned long long buyer_id; //specific id for a ticket of a buyer
-    public:
-        Buyer_id(unsigned long long obj = 0): buyer_id(obj) {}
-        Buyer_id(const Buyer_id &other): buyer_id(other.buyer_id) {}
-        ~Buyer_id() {}
-
-        unsigned long long get_buyer_id() {return buyer_id;}
-        bool operator<(const Buyer_id &obj) {return buyer_id < obj.buyer_id;}
-    };
 };
 #endif
