@@ -1,38 +1,22 @@
 #ifndef DATABASE_BPLUSTREE_H
 #define DATABASE_BPLUSTREE_H
 
-#define LOG 1
-#include <string>
-#include <cstdio>
-#include <cmath>
-#include "TreeNode.h"
 #include "BufferManager.h"
-#include "constant.h"
+#include <cmath>
 #include <queue>
-
-
+// #define LOG 1
+// #define DEBUG 2
 
 namespace sjtu {
-    /** B-plus tree with unique key. */
-
-    /**
-     * degree is stored in B-tree class instead of node class,
-     * because node class is adaptable to B-tree with different degrees,
-     * which means degree is BPlustree's feature.
-     *
-     * initially, I wanna design LeafNode and BranchNode separately.
-     * but if we do this, data type will be heterogeneous, and hard to manage.
-     * information about keys, vals, and childs are well encapsulated inside <vector> class.
-     * we omit unnecessary fields. */
-
-
     template<class KeyType, class ValType>
     class UniqueBPlusTree {
+        friend class debugger;
+
     private:
         typedef TreeNode<KeyType, ValType> Node;
 
     private:
-        std::string filename;
+        char filename[50];
         BufferManager<KeyType, ValType> bm;
 
         /**
@@ -44,24 +28,322 @@ namespace sjtu {
         int K_byte, V_byte;
 
     private:
-        /**
-         * return the leaf node K belongs.
-         * Note that I'm always able to land in a leaf node. */
-        void search_to_leaf(KeyType K, Node &ret) {
-            bm.get_root(ret);
 
-            while (!ret.isLeaf) {
-                int i = ret.search_sup(K);
+        bool erase_node(Node &cur, const KeyType &K) {
+            static short sbl_off = 1;
 
-                // fail to find, means K is larger than max key.
-                if (i == -1)
-                    bm.get_block_by_offset(ret.childs.back(), ret);
-                else
-                    bm.get_block_by_offset(ret.childs[i], ret);
+            if(cur.isLeaf) {
+                short delpos = cur.search_exact(K);
+
+                // key doesn't exist.
+                if(delpos == -1)
+                    return false;
+                else {
+                    cur.keys.erase(delpos);
+                    cur.vals.erase(delpos);
+                    return true;
+                }
+            }
+            else {
+                Node ch;
+                short ch_pos = find_child(cur, K, ch);
+
+                bool erased;
+                // 向下找子，递归进去。
+                erased = erase_node(ch, K);
+
+                // 删除未成功。
+                if(!erased)
+                    return false;
+
+                // 删除成功。记得写入。
+                // 按照不同类型，分别处理当前树枝和儿子。
+                if(ch.isLeaf) {
+                    // 如果不太空，直接返回。
+                    if(ch.keys.size() >= (short) ceil(leaf_degree / 2.0)) {
+                        bm.write_block(ch);
+                        return true;
+                    }
+                    // 如果太空。
+                    else {
+                        Node sbl;
+                        short sbl_pos;
+                        short key_pos;
+                        KeyType K_bt;
+                        Node *l_node, *r_node;
+
+                        // 找到兄弟。
+                        if(ch_pos == 0) {
+                            bm.get_block_by_offset(cur.childs[1], sbl);
+                            sbl_pos = 1;
+                        }
+                        else if(ch_pos == cur.childs.size()-1) {
+                            bm.get_block_by_offset(cur.childs[cur.childs.size()-2], sbl);
+                            sbl_pos = cur.childs.size() - (short) 2;
+                        }
+                        else {
+                            bm.get_block_by_offset(cur.childs[ch_pos + sbl_off], sbl);
+                            sbl_pos = ch_pos + sbl_off;
+                            sbl_off *= -1;
+                        }
+
+                        // 找到要在当前结点中删除儿子们信息的位置。
+                        key_pos = std::min(ch_pos, sbl_pos);
+                        K_bt = cur.keys[key_pos];
+
+                        // 如果可以放到一起。
+                        if(ch.keys.size() + sbl.keys.size() <= leaf_degree) {
+                            // 对称化儿子兄弟和儿子结点。
+                            if(ch_pos < sbl_pos) {
+                                l_node = &ch;
+                                r_node = &sbl;
+                            }
+                            else {
+                                l_node = &sbl;
+                                r_node = &ch;
+                            }
+
+                            // maintain basic info.
+                            l_node->next = r_node->next;
+                            if (bm.tail_off == r_node->addr)
+                                bm.tail_off = l_node->addr;
+
+                            // 处理儿子。
+                            for (short i = 0; i < r_node->keys.size(); ++i) {
+                                l_node->keys.push_back(r_node->keys[i]);
+                                l_node->vals.push_back(r_node->vals[i]);
+                            }
+
+                            // 处理父亲。
+                            cur.keys.erase(key_pos);
+                            cur.childs.erase(key_pos + (short) 1);
+
+                            // 写入儿子，即使右儿子没什么卵用也暂时写入它。
+                            bm.write_block(*l_node);
+                            bm.write_block(*r_node);
+
+                            // 删除成功。
+                            return true;
+                        }
+                        // 借用一个，重新分配。
+                        else {
+                            if(sbl_pos < ch_pos) {
+                                // borrow last key from sibling, record key position in father.
+                                KeyType key_shift = sbl.keys.back();
+                                ValType val_shift = sbl.vals.back();
+
+                                // remove them.
+                                sbl.keys.pop_back();
+                                sbl.vals.pop_back();
+
+                                // insert shifted key in front of leaf.
+                                ch.keys.insert(0, key_shift);
+                                ch.vals.insert(0, val_shift);
+
+                                // change key in father node.
+                                cur.keys[key_pos] = ch.keys[0];
+
+                                // 写入儿子。
+                                bm.write_block(ch);
+                                bm.write_block(sbl);
+
+                                // 删除成功。
+                                return true;
+                            }
+                            // symmetric situation where sibling is to the right of p.
+                            else {
+                                // borrow first key from sibling.
+                                KeyType key_shift = sbl.keys.front();
+                                ValType val_shift = sbl.vals.front();
+
+                                // remove them.
+                                sbl.keys.erase(0);
+                                sbl.vals.erase(0);
+
+                                // append shifted key.
+                                ch.keys.push_back(key_shift);
+                                ch.vals.push_back(val_shift);
+
+                                // change key in father node.
+                                cur.keys[key_pos] = sbl.keys[0];
+
+                                // 写入儿子。
+                                bm.write_block(ch);
+                                bm.write_block(sbl);
+
+                                // 删除成功。
+                                return true;
+                            }
+                        }
+                    }
+                }
+                // 当子结点是树枝的时候。
+                else {
+                    // 如果不太空，直接返回。
+                    if(ch.childs.size() >= (short) ceil(branch_degree / 2.0)) {
+                        bm.write_block(ch);
+                        return true;
+                    }
+                    // 如果太空。
+                    else {
+                        // 找到兄弟。
+                        Node sbl;
+                        short sbl_pos;
+                        short key_pos;
+                        KeyType K_bt;
+                        Node *l_node, *r_node;
+
+                        // 找到兄弟。
+                        if(ch_pos == 0) {
+                            bm.get_block_by_offset(cur.childs[1], sbl);
+                            sbl_pos = 1;
+                        }
+                        else if(ch_pos == cur.childs.size()-1) {
+                            bm.get_block_by_offset(cur.childs[cur.childs.size()-2], sbl);
+                            sbl_pos = cur.childs.size() - (short) 2;
+                        }
+                        else {
+                            bm.get_block_by_offset(cur.childs[ch_pos + sbl_off], sbl);
+                            sbl_pos = ch_pos + sbl_off;
+                            sbl_off *= -1;
+                        }
+
+                        key_pos = std::min(ch_pos, sbl_pos);
+                        K_bt = cur.keys[key_pos];
+
+                        // 如果可以放到一起。
+                        if(ch.childs.size() + sbl.keys.size() <= branch_degree) {
+                            // 对称化儿子兄弟和儿子结点。
+                            if(ch_pos < sbl_pos) {
+                                l_node = &ch;
+                                r_node = &sbl;
+                            }
+                            else {
+                                l_node = &sbl;
+                                r_node = &ch;
+                            }
+
+                            // 处理儿子。在左儿子上append在当前结点的key。
+                            l_node->keys.push_back(K_bt);
+                            for (short i = 0; i < r_node->keys.size(); ++i)
+                                l_node->keys.push_back(r_node->keys[i]);
+                            for(short i = 0; i < r_node->childs.size(); ++i)
+                                l_node->childs.push_back(r_node->childs[i]);
+
+                            // 处理父亲。
+                            cur.keys.erase(key_pos);
+                            cur.childs.erase(key_pos + (short) 1);
+
+                            // 写入儿子，即使右儿子没什么卵用也暂时写入它。
+                            bm.write_block(*l_node);
+                            bm.write_block(*r_node);
+
+                            // 删除成功。
+                            return true;
+                        }
+                            // 借用一个，重新分配。
+                        else {
+                            if(sbl_pos < ch_pos) {
+                                // borrow last key from sibling, record key position in father.
+                                KeyType key_shift = sbl.keys.back();
+                                offsetNumber child_shift = sbl.childs.back();
+
+                                // remove them.
+                                sbl.keys.pop_back();
+                                sbl.childs.pop_back();
+
+                                // insert shifted key in front of leaf.
+                                ch.keys.insert(0, K_bt);
+                                ch.childs.insert(0, child_shift);
+
+                                // change key in father node.
+                                cur.keys[key_pos] = key_shift;
+
+                                // 写入儿子。
+                                bm.write_block(ch);
+                                bm.write_block(sbl);
+
+                                // 删除成功。
+                                return true;
+                            }
+                                // symmetric situation where sibling is to the right of p.
+                            else {
+                                // borrow first key from sibling.
+                                KeyType key_shift = sbl.keys.front();
+                                offsetNumber child_shift = sbl.childs.front();
+
+                                // remove them.
+                                sbl.keys.erase(0);
+                                sbl.childs.erase(0);
+
+                                // append shifted key.
+                                ch.keys.push_back(key_shift);
+                                ch.childs.push_back(child_shift);
+
+                                // change key in father node.
+                                cur.keys[key_pos] = key_shift;
+
+                                // 写入儿子。
+                                bm.write_block(ch);
+                                bm.write_block(sbl);
+
+                                // 删除成功。
+                                return true;
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        /** sub-function used by insert()
+        KeyType split_branch(Node &B, Node &B_next) {
+        #ifdef LOG
+            std::cout << "split_branch" << std::endl;
+        #endif
+            Node tmp(B);
+            B.clear_content();
+
+            short mid = (short) ceil(branch_degree / 2.0);
+            KeyType mid_key = tmp.keys[mid - 1];
+
+            B.childs.assign(tmp.childs, 0, mid);
+            B.keys.assign(tmp.keys, 0, mid - (short) 1);
+
+            B_next.childs.assign(tmp.childs, mid, tmp.childs.size());
+            B_next.keys.assign(tmp.keys, mid, tmp.keys.size());
+
+            return mid_key;
+        }
+
+        /** sub-function used by insert_in_leaf()
+        *
+        * when leaf key number exceeds degree, it has to be split into two,
+        * in which case key number will be exactly 'degree + 1'.
+        *
+        * the first node receives ceil((degree) / 2) keys
+        * the second node receives the rest of them.
+        * note that second node's key number always lies in BPlusTree key number range.
+        *
+        * example: degree = 5; range = [2, 4]; first = 2; second = 3.
+        *          degree = 6; range = [3, 5]; first = 3; second = 3. */
+        void split_leaf(Node &L, Node &L_next) {
+        #ifdef LOG
+            std::cout << "split_leaf" << std::endl;
+        #endif
+            Node tmp(L);
+            L.clear_content();
+
+            short mid = (short) std::ceil((leaf_degree) / (2.0));
+
+            L.keys.assign(tmp.keys, 0, mid);    // assign mid number of keys.
+            L.vals.assign(tmp.vals, 0, mid);
+
+            L_next.keys.assign(tmp.keys, mid, tmp.keys.size());
+            L_next.vals.assign(tmp.vals, mid, tmp.vals.size());
+        }
+
+
+        /** sub-function used by insert_node()
          *
          * insert key and value in node pointed by p
          * adapting to search_sup method of Node class
@@ -72,7 +354,7 @@ namespace sjtu {
             std::cout << "insert_in_leaf" << std::endl;
         #endif
             // find the first key greater than K, if exist.
-            int i = cur.search_sup(K);
+            short i = cur.search_sup(K);
 
             // check K existence.
             if (i != -1 && i != 1 && cur.keys[i - 1] == K)
@@ -90,135 +372,105 @@ namespace sjtu {
             return true;
         }
 
-        /** sub-function used by insert_in_leaf()
-         *
-         * when leaf key number exceeds degree - 1, it has to be split into two,
-         * in which case key number will be exactly 'degree'.
-         *
-         * the first node receives ceil((degree - 1) / 2) keys
-         * the second node receives the rest of them.
-         * note that second node's key number always lies in BPlusTree key number range.
-         *
-         * example: degree = 5; range = [2, 4]; first = 2; second = 3.
-         *          degree = 6; range = [3, 5]; first = 3; second = 3. */
-        void split_leaf(Node &L, Node &L_next, const Node &tmp) {
-        #ifdef LOG
-            std::cout << "split_leaf" << std::endl;
-        #endif
-            short mid = (short)ceil((leaf_degree) / (2.0));
+        bool insert_node(Node &cur, const KeyType &K, const ValType &V) {
+            if (cur.isLeaf) {
+                return insert_in_leaf(cur, K, V);       // return false is exists.
+            } else {
+                Node ch;
+                bool success;
 
-            L.keys.assign(tmp.keys, 0, mid);    // assign mid number of keys.
-            L.vals.assign(tmp.vals, 0, mid);
+                // 向下找子。
+                short ch_pos = find_child(cur, K, ch);
 
-            L_next.keys.assign(tmp.keys, mid, tmp.keys.size());
-            L_next.vals.assign(tmp.vals, mid, tmp.vals.size());
-        }
+                // 递归进去。
+                success = insert_node(ch, K, V);
 
-        KeyType split_branch(Node &B, Node &B_next, Node &tmp) {
-        #ifdef LOG
-            std::cout << "split_branch" << std::endl;
-        #endif
-            short mid = (short) ceil(branch_degree / 2.0);
-            KeyType mid_key = tmp.keys[mid - 1];
+                // 处理儿子和自己。
+                // 1. 插入未成功。
+                if (!success)
+                    return false;
+                // 2. 插入成功。
+                // （按照不同的类型，分别处理儿子）
+                if (ch.isLeaf) {
+                    // 如果不需要分裂，直接返回。
+                    if (ch.keys.size() <= leaf_degree) {
+                        bm.write_block(ch);
+                        return true;
+                    }
+                        // 如果需要分裂，处理儿子和自己。
+                    else {
+                        Node newLeaf;
+                        bm.append_block(newLeaf, true); // get a new leaf node to the right of cur.
 
-            B.childs.assign(tmp.childs, 0, mid);
-            B.keys.assign(tmp.keys, 0, mid - (short)1);
+                        newLeaf.next = ch.next;    // maintain address info.
+                        ch.next = newLeaf.addr;
+                        if (bm.tail_off == ch.addr)
+                            bm.tail_off = newLeaf.addr;
 
-            B_next.childs.assign(tmp.childs, mid, tmp.childs.size());
-            B_next.keys.assign(tmp.keys, mid, tmp.keys.size());
+                        split_leaf(ch, newLeaf);
+                        cur.childs.insert(ch_pos + (short) 1, newLeaf.addr);
+                        cur.keys.insert(ch_pos, newLeaf.keys[0]);
 
-            // adjust children's father. Very expensive!!! must optimize!!!
-            Node ch;
-            for(int i = 0; i < B_next.childs.size(); ++i) {
-                bm.get_block_by_offset(B_next.childs[i], ch);
-                ch.parent = B_next.addr;
-                bm.write_block(ch);
+                        bm.write_block(ch);
+                        bm.write_block(newLeaf);
+                        return true;
+                    }
+                }
+                    // 儿子结点为树枝。
+                else {
+                    // 如果不需要分裂，直接返回。
+                    if (ch.childs.size() <= branch_degree) {
+                        bm.write_block(ch);
+                        return true;
+                    }
+                        // 如果需要分裂，处理儿子和自己。
+                    else {
+                        KeyType mid_key;
+                        Node newBranch;
+                        bm.append_block(newBranch, false);
+
+                        mid_key = split_branch(ch, newBranch);
+                        cur.childs.insert(ch_pos + (short) 1, newBranch.addr);
+                        cur.keys.insert(ch_pos, mid_key);
+
+                        bm.write_block(ch);
+                        bm.write_block(newBranch);
+                        return true;
+                    }
+                }
+
             }
-
-            return mid_key;
         }
+
         /**
-         * p is old node which has been split into two
-         * p_next is the new one
-         * K is the smallest key in p_next (in leaf to branch case)
-         *
-         * Note that branch nodes' key is always present in the front of leaves,
-         * which is sadly not true for branch-branch case
-         *
-         * returns whether sons' father is adjusted. */
-        bool insert_in_parent(Node &oldSon, const KeyType &K, Node &newSon) {
-        #ifdef LOG
-            std::cout << "insert_in_parent" << std::endl;
-        #endif
-            // new root is needed.
-            if(oldSon.addr == bm.get_root()) {
-                Node fa;
-                bm.append_block(fa, false);     // this time we need branch node.
-
-                bm.set_root(fa.addr);
-                fa.childs.push_back(oldSon.addr);
-                fa.childs.push_back(newSon.addr);
-                fa.keys.push_back(K);
-                oldSon.parent = fa.addr;
-                newSon.parent = fa.addr;
-
-                bm.write_block(fa);
-                return false;
-            }
-            // pick out p's parent, update parent field.
-            Node fa;
-            bm.get_block_by_offset(oldSon.parent, fa);
-            newSon.parent = fa.addr;
-            /* insert into parent first, regardless of whether there's empty slot available */
-            short son_idx = fa.search_child(oldSon.addr);
-            fa.childs.insert(son_idx + 1, newSon.addr);
-            fa.keys.insert(son_idx, K);
-            if(fa.childs.size() <= branch_degree) {
-                bm.write_block(fa);
-                return false;
-            }
-            // check whether split is needed, distribute keys and children.
-            // note that the problem is adjust children's parent in each node is expensive.
-            else {
-                Node tmp(fa);
-                Node fa_next;
-                bm.append_block(fa_next, false);
-                KeyType mid_key;
-
-                fa.clear_content();
-                mid_key = split_branch(fa, fa_next, tmp);   // we adjust fa_next's child inside this.
-
-                /// we need to adjust oldSon and newSon's parent.
-                if(fa.search_child(oldSon.addr) != -1)
-                    oldSon.parent = fa.addr;
-                else
-                    oldSon.parent = fa_next.addr;
-
-                if(fa.search_child(newSon.addr) != -1)
-                    newSon.parent = fa.addr;
-                else
-                    newSon.parent = fa_next.addr;
-
-                insert_in_parent(fa, mid_key, fa_next);
-                bm.write_block(fa);
-                bm.write_block(fa_next);
-
-                return true;
+         * cur: branch node; K: key
+         * return child: child of cur. return index in childs array. */
+        short find_child(Node &cur, const KeyType K, Node &child) {
+            short i = cur.search_sup(K);
+            // fail to find, means K is larger than max key.
+            if (i == -1) {
+                bm.get_block_by_offset(cur.childs.back(), child);
+                return cur.childs.size() - (short) 1;
+            } else {
+                bm.get_block_by_offset(cur.childs[i], child);
+                return i;
             }
         }
 
-        bool erase_leaf(Node &leaf, KeyType K) {
-            short K_idx = leaf.search_exact(K);
-            // if K doesn't exist.
-            if(K_idx == -1)
-                return false;
+        /**
+         * return the leaf node K belongs.
+         * Note that I'm always able to land in a leaf node. */
+        void search_to_leaf(KeyType K, Node &ret) {
+            bm.get_root(ret);
 
-
+            while (!ret.isLeaf) {
+                find_child(ret, K, ret);
+            }
         }
 
-        public:
-        explicit UniqueBPlusTree(const std::string &fname) {
-            filename = fname;
+    public:
+        explicit UniqueBPlusTree(const char *fname) {
+            strcpy(filename, fname);
             bm.set_fileName(fname);
 
             K_byte = sizeof(KeyType), V_byte = sizeof(ValType);
@@ -229,15 +481,16 @@ namespace sjtu {
             leaf_degree = (blockSize - tree_utility_byte - node_utility_byte) / (K_byte + V_byte);
             branch_degree = (blockSize - node_utility_byte + K_byte) / (sizeof(offsetNumber) + K_byte);
 
-            #ifdef LOG
-                std::cout << "leaf degree: " << leaf_degree << " branch degree: " << branch_degree << std::endl;
-            #endif
+        #ifdef LOG
+            std::cout << "leaf degree: " << leaf_degree << " branch degree: " << branch_degree << std::endl;
+        #endif
 
-            if(leaf_degree == 0)
+            if (leaf_degree == 0)
                 std::cerr << "leaf degree is 0" << std::endl;
         }
+
         ~UniqueBPlusTree() {
-            if(bm.is_opened())
+            if (bm.is_opened())
                 bm.close_file();
         }
 
@@ -254,7 +507,6 @@ namespace sjtu {
         bool close_file() {
             return bm.close_file();
         }
-
 
         ValType find(const KeyType &K) {
             Node ret;
@@ -275,67 +527,99 @@ namespace sjtu {
 
             search_to_leaf(K, leafNode);
             keyPos = leafNode.search_exact(K);
-            if(keyPos == -1)                // fail to find.
+            if (keyPos == -1)                // fail to find.
                 return false;
             else {
                 leafNode.vals[keyPos] = V;  // modify and write back.
                 bm.write_block(leafNode);
+                return true;
             }
         }
 
         /**
          * return false if key has been inserted. */
         bool insert(const KeyType &K, const ValType &V) {
+        #ifdef LOG
             static int cnt = 0;
             cnt++;
-            #ifdef LOG
             std::cout << std::endl << cnt << " insert log starts: " << std::endl;
-            #endif
-            Node cur;
-            if (bm.get_root() == -1) {
-                bm.append_block(cur, true);     // append a new block.
+        #endif
+            Node root;
+            bool success;
 
-                cur.keys.push_back(K);
-                cur.vals.push_back(V);
+            if (bm.root_off == -1) {
+                bm.append_block(root, true);     // append a new block.
 
-                bm.set_root(cur.addr);          // update root.
-                bm.write_block(cur);
+                root.keys.push_back(K);
+                root.vals.push_back(V);
+
+                bm.set_root(root.addr);          // update root.
+                bm.write_block(root);
+
+                // maintain a list.
+                bm.head_off = root.addr;
+                bm.tail_off = root.addr;
                 return true;
             }
 
-            search_to_leaf(K, cur);
-            if (cur.keys.size() < leaf_degree)   // if leaf node has extra slot.
-            {
-                bool flag = insert_in_leaf(cur, K, V);
-                if(flag)                        // insert success
-                {
-                    bm.write_block(cur);
-                    return flag;
+            bm.get_root(root);
+            success = insert_node(root, K, V);
+
+            if (!success)
+                return false;
+                // insert successfully, may need split and increase tree height.
+            else {
+                if (root.isLeaf) {
+                    // 如果出事了，增加树高。更新一些东西。
+                    if (root.keys.size() > leaf_degree) {
+                        Node newLeaf, newRoot;
+
+                        bm.append_block(newLeaf, true);
+                        split_leaf(root, newLeaf);
+
+                        newLeaf.next = root.next;    // maintain address info.
+                        root.next = newLeaf.addr;
+                        if (bm.tail_off == root.addr)
+                            bm.tail_off = newLeaf.addr;
+
+
+                        bm.append_block(newRoot, false);
+                        newRoot.childs.push_back(root.addr);
+                        newRoot.childs.push_back(newLeaf.addr);
+                        newRoot.keys.push_back(newLeaf.keys[0]);
+                        bm.root_off = newRoot.addr;
+
+                        bm.write_block(root);
+                        bm.write_block(newLeaf);
+                        bm.write_block(newRoot);
+                    }
+                    // 如果没出事，写入根节点。
+                    else {
+                        bm.write_block(root);
+                    }
+                } else {
+                    // 如果出事了，增加树高。
+                    if (root.childs.size() > branch_degree) {
+                        Node newBranch, newRoot;
+                        KeyType mid_key;
+
+                        bm.append_block(newBranch, false);
+                        mid_key = split_branch(root, newBranch);
+
+                        bm.append_block(newRoot, false);
+                        newRoot.childs.push_back(root.addr);
+                        newRoot.childs.push_back(newBranch.addr);
+                        newRoot.keys.push_back(mid_key);
+                        bm.root_off = newRoot.addr;
+
+                        bm.write_block(root);
+                        bm.write_block(newBranch);
+                        bm.write_block(newRoot);
+                    }
+                    // 如果没出事，写入根节点。
+                    bm.write_block(root);
                 }
-            }
-            else                                // split leaf.
-            {
-                bool flag;
-                Node newLeaf;
-                bm.append_block(newLeaf, true); // get a new leaf node to the right of cur.
-
-                newLeaf.next = cur.next;
-                cur.next = newLeaf.addr;
-
-                /* we can't do this so far, because cur->parent may not be created yet.
-                 * next_leaf->parent = cur->parent; */
-
-                Node tmp(cur);
-                flag = insert_in_leaf(tmp, K, V);
-                if (!flag) return false;         // key exists.
-
-                cur.clear_content();
-                split_leaf(cur, newLeaf, tmp);
-
-                // see whether we can't overwrite father.
-                insert_in_parent(cur, newLeaf.keys[0], newLeaf);  // modify parent keys and children.
-                bm.write_block(cur);
-                bm.write_block(newLeaf);
+                return true;
             }
         }
 
@@ -347,87 +631,98 @@ namespace sjtu {
          *
          * if erased K is not found, return false. */
         bool erase(KeyType K) {
-            if(bm.get_root() == -1) {
+            if (bm.root_off == -1) {
                 std::cerr << "erase empty B plus tree" << std::endl;
                 return false;
             }
 
-            Node leaf;
-            search_to_leaf(K, leaf);
-            return erase_leaf(leaf, K);
-        }
+            Node root;
+            bool erased;
+            bm.get_root(root);
+            erased = erase_node(root, K);
 
-        /**
-         * get the first and last element in tree.
-         * if tree is empty, return object constructed by default constructor. */
-        std::pair<KeyType, ValType> get_head() {
-            Node head;
-            if(bm.get_head(head))
-                return std::pair<KeyType, ValType>(head.keys[0], head.vals[0]);
-            else
-                return std::pair<KeyType, ValType>(KeyType(), ValType());
+            if(!erased)
+                return false;
+            // 看看root要不要更新呢？
+            else {
+                // 根节点——叶结点为空时，空置B+树。
+                if(root.isLeaf) {
+                    if(root.keys.size() == 0) {
+                        bm.root_off = bm.head_off = bm.tail_off = -1;
+                    }
+                }
+                // 根节点——树枝结点只有一个儿子时，减小树高。
+                else {
+                    #ifdef DEBUG
+                    if(root.childs.size() < 1)
+                        std::cerr << "root child number invalid!" << std::endl;
+                    #endif
+                    if(root.childs.size() == 1) {
+                        bm.root_off = root.childs[0];
+                    }
+                }
+                bm.write_block(root);
+                // 删除成功。
+                return true;
+            }
         }
-        std::pair<KeyType, ValType> get_tail() {
-            Node tail;
-            if(bm.get_tail(tail))
-                return std::pair<KeyType, ValType>(tail.keys[0], tail.vals[0]);
-            else
-                return std::pair<KeyType, ValType>(KeyType(), ValType());
-        }
-
         #ifdef LOG
         /** perform a level order traversal for B tree. */
         struct qElem {
             offsetNumber addr;
             int depth;
-            qElem(offsetNumber ad, int dpt) : addr(ad), depth(dpt) { }
+
+            qElem(offsetNumber ad, int dpt) : addr(ad), depth(dpt) {}
         };
         void view() {
-            if(bm.get_root() == -1) {
+            if (bm.root_off == -1) {
                 std::cout << "tree is empty" << std::endl;
                 return;
             }
 
+            printf("root_offset: %d; head_offset: %d; tail_offset: %d, append_offset: %d\n\n",
+                   bm.root_off, bm.head_off, bm.tail_off, bm.append_off);
             std::queue<qElem> q;
-            q.emplace(bm.get_root(), 1);
+            q.emplace(bm.root_off, 1);
 
-            while(!q.empty()) {
+            while (!q.empty()) {
                 qElem tmpQ = q.front();
                 q.pop();
 
                 Node tmpN;
                 bm.get_block_by_offset(tmpQ.addr, tmpN);
-                printf("address: %d; depth: %d; parent: %d ", tmpQ.addr, tmpQ.depth, tmpN.parent);
-                if(tmpN.isLeaf) {
-                    printf("next: %d; leafNode\nkeys: ", tmpN.next);
-                    for(int i = 0; i < tmpN.keys.size(); ++i) {
+                printf("address: %d; depth: %d", tmpQ.addr, tmpQ.depth);
+                if (tmpN.isLeaf) {
+                    printf("; next: %d; leafNode\nkeys: ", tmpN.next);
+                    for (int i = 0; i < tmpN.keys.size(); ++i) {
                         std::cout << tmpN.keys[i] << ' ';
                     }
 
                     printf("\nvals: ");
-                    for(int i = 0; i < tmpN.vals.size(); ++i) {
+                    for (int i = 0; i < tmpN.vals.size(); ++i) {
                         std::cout << tmpN.vals[i] << ' ';
                     }
 
                     printf("\n\n");
-                }
-                else {
-                    printf("branchNode\nkeys: ");
-                    for(int i = 0; i < tmpN.keys.size(); ++i) {
+                } else {
+                    printf("; branchNode\nkeys: ");
+                    for (int i = 0; i < tmpN.keys.size(); ++i) {
                         std::cout << tmpN.keys[i] << ' ';
                     }
 
                     printf("\nchildren: ");
-                    for(int i = 0; i < tmpN.childs.size(); ++i) {
+                    for (int i = 0; i < tmpN.childs.size(); ++i) {
                         std::cout << tmpN.childs[i] << ' ';
                     }
                     printf("\n\n");
 
-                    for(int i = 0; i < tmpN.childs.size(); ++i)
+                    for (int i = 0; i < tmpN.childs.size(); ++i)
                         q.emplace(tmpN.childs[i], tmpQ.depth + 1);
                 }
             }
         }
+        #else
+        void view() {}
         #endif
     };
 };

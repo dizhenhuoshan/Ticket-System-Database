@@ -12,7 +12,6 @@ namespace sjtu {
     class TreeNode {
     public:
         offsetNumber addr;          // exact address in file.
-        offsetNumber parent;        // -1 means no parent.
 
         /** 先new，再卡常。*/
         vector<offsetNumber> childs;
@@ -30,7 +29,7 @@ namespace sjtu {
                 keys(blockSize / sizeof(KeyType))
         {
             addr = address;
-            parent = next = -1;
+            next = -1;
             isLeaf = leaf;
         }
 
@@ -40,7 +39,6 @@ namespace sjtu {
                 keys(blockSize / sizeof(KeyType))
         {
             addr = other.addr;
-            parent = other.parent;
             next = other.next;
 
             isLeaf = other.isLeaf;
@@ -52,6 +50,15 @@ namespace sjtu {
                 childs = other.childs;
         }
 
+        TreeNode &operator= (const TreeNode &other) {
+            addr = other.addr;
+            childs = other.childs;
+            keys = other.keys;
+            vals = other.vals;
+            next = other.next;
+            isLeaf = other.isLeaf;
+            return *this;
+        }
         /**
          * search for i, where i is the smallest value with key[i] > K. if search fails, return -1
          * it may be regarded as finding sup of K in set of Kis */
@@ -66,7 +73,7 @@ namespace sjtu {
         /**
          * find exactly key[i] == K. if search fails, return -1
          * in the case of duplicated key, return the left-most one */
-        short search_exact(KeyType K) {
+        short search_exact(const KeyType &K) {
             short pos = 0;
             while (pos < keys.size() && keys[pos] != K) ++pos;
 
@@ -86,7 +93,7 @@ namespace sjtu {
         /**
          * clear node to be the container for a new one. */
         void clear() {
-            addr = parent = next = -1;
+            addr = next = -1;
             isLeaf = true;
 
             childs.clear();

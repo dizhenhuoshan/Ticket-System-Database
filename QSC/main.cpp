@@ -5,6 +5,7 @@
 #include "timer.h"
 #include "BPlusTree.h"
 #include "debug.h"
+#include <map>
 
 using namespace std;
 
@@ -31,8 +32,21 @@ int main() {
     }
     std::cout << std::endl;
     */
+    /*
+    timer t;
+    double st, et;
 
-    // sjtu::debugger db;
+    st = t.get_time();
+    sjtu::UniqueBPlusTree<int, double> bp("test6");
+    bp.open_file();
+    for(int i = 0; i < 1000000; ++i)
+        bp.insert(i, i + 0.5);
+    bp.close_file();
+    et = t.get_time();
+    cout << et - st << endl;
+    */
+    sjtu::debugger db;
+    db.info_test();
 
     return 0;
 }

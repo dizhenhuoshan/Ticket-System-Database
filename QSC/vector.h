@@ -3,26 +3,26 @@
 
 #include <cstdlib>
 #include <iostream>
+#include "constant.h"
 
 namespace sjtu {
 
     template <class ElemType>
     class vector {
     private:
-        ElemType *arr;
+        // ElemType *arr;
+        ElemType arr[blockSize];
         short len;
         int mallocSize;
 
     public:
         explicit vector(const int &&size) {
             mallocSize = size;
-            arr = (ElemType *) malloc(mallocSize * sizeof(ElemType));
+            // arr = new ElemType[mallocSize];
             len = 0;
         }
         ~vector() {
-            for(int i = 0; i < len; ++i)
-                arr[i].~ElemType();
-            free(arr);
+            // delete [] arr;
         }
 
         void push_back(const ElemType &elem) {
@@ -30,7 +30,7 @@ namespace sjtu {
             arr[len++] = elem;
         }
 
-        void insert(const int &pos, const ElemType &elem) {
+        void insert(const short &pos, const ElemType &elem) {
             if(pos > len || pos < 0 || len == mallocSize)
                 std::cerr << "insert error" << std::endl;
 
@@ -40,18 +40,39 @@ namespace sjtu {
             ++len;
         }
 
+        void erase(const short &pos) {
+            if(pos >= len || pos < 0)
+                fprintf(stderr, "invalid erase position. pos: %d, len: %d\n", pos, len);
+
+            for(short i = pos; i < len - 1; ++i)
+                arr[i] = arr[i+1];              // a[len-2] <-- a[len-1]
+            --len;
+        }
+
+        void pop_back() {
+            if(len == 0)
+                fprintf(stderr, "pop empty vector\n");
+            --len;
+        }
+
         void clear() {
             len = 0;
         }
 
         short size() const {
-            return len;
+            return (short)len;
         }
 
         ElemType &back() {
-            if(len == 0) std::cerr << "back out of range." << std::endl;
+            if(len == 0) std::cerr << "back empty vector." << std::endl;
             return arr[len-1];
         }
+
+        ElemType &front() {
+            if(len == 0) std::cerr << "front empty vector." << std::endl;
+            return arr[0];
+        }
+
         // mallocSize must be identical because of same type.
         // this invariant is maintained in TreeNode.h.
         vector<ElemType> &operator= (const vector<ElemType> &other) {
@@ -60,10 +81,12 @@ namespace sjtu {
             len = other.len;
             for(int i = 0; i < len; ++i)
                 arr[i] = other.arr[i];
+            return *this;
         }
 
         ElemType& operator[] (const short &pos) {
-            if(pos < 0 || pos >= len) std::cerr << "vector out of bound" << std::endl;
+            if(pos < 0 || pos >= len)
+                std::cerr << "vector out of bound" << std::endl;
             return arr[pos];
         }
 

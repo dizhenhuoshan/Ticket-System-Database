@@ -1,6 +1,8 @@
 #ifndef DATABASE_BUFFERMANAGER_H
 #define DATABASE_BUFFERMANAGER_H
 
+#include <queue>
+
 #include <string>
 #include "TreeNode.h"
 #include "BPlusTree.h"
@@ -19,23 +21,26 @@ namespace sjtu {
 
     template <class KeyType, class ValType>
     class BufferManager {
+        friend class debugger;
     private:
         typedef TreeNode<KeyType, ValType> Node;
 
         std::string filename;
-
         FILE *fp;
 
+        bool isOpened;              /// has file pointer opened file.
+
+        /** when B+ tree do insert and erase, it has to update head_off and tail_off.
+         * I don't know how to use friend class... I have to admit. */
+    public:
         /** if these three offsets are 0, then add an utility_off. */
         /// use -1 to denote non-exist values.
         offsetNumber root_off;      /// get root block.
         offsetNumber head_off;      /// get head block when sequential scan.
         offsetNumber tail_off;      /// get tail block when sequential scan.
-
-        /// append_off always exist.
+        /// append_off always exist. This can't be modified.
         offsetNumber append_off;    /// get a new block when append.
 
-        bool isOpened;              /// has file pointer opened file.
     private:
         /**
          * try to open file, if fail, return false. */
@@ -162,7 +167,6 @@ namespace sjtu {
             ret.vals.file_read(fp, V_size);
             ret.childs.file_read(fp, Ch_size);
 
-            fread(&ret.parent, sizeof(offsetNumber), 1, fp);
             fread(&ret.next, sizeof(offsetNumber), 1, fp);
         }
 
@@ -176,15 +180,6 @@ namespace sjtu {
                 return false;
             else {
                 get_block_by_offset(cur.next, ret);
-                return true;
-            }
-        }
-
-        bool get_parent(const Node &cur, Node &ret) {
-            if(cur.parent == -1)
-                return false;
-            else {
-                get_block_by_offset(cur.parent, ret);
                 return true;
             }
         }
@@ -253,7 +248,6 @@ namespace sjtu {
             cur.vals.file_write(fp);
             cur.childs.file_write(fp);
 
-            fwrite(&cur.parent, sizeof(offsetNumber), 1, fp);
             fwrite(&cur.next, sizeof(offsetNumber), 1, fp);
         }
 
@@ -280,6 +274,56 @@ namespace sjtu {
 
         offsetNumber get_root() {
             return root_off;
+        }
+
+        /*
+        /// check whether parent and children are linked properly.
+        void check_link() {
+            if(root_off == -1) {
+                printf("tree is empty, link properly\n");
+                return;
+            }
+
+            std::queue<offsetNumber> q;
+            q.push(root_off);
+
+            while(!q.empty()) {
+                offsetNumber off;
+                Node node;
+
+                off = q.front();
+                q.pop();
+                get_block_by_offset(off, node);
+
+                for(int i = 0; i < node.childs.size(); ++i) {
+                    Node ch;
+                    get_block_by_offset(node.childs[i], ch);
+                    if(ch.parent != node.addr) {
+                        fprintf(stderr, "link is break\n");
+                        return;
+                    }
+                }
+            }
+            printf("tree links properly\n");
+        }
+        */
+        void traverse() {
+            if(head_off == -1) {
+                printf("traverse empty tree\n");
+                return;
+            }
+
+            Node cur;
+            get_block_by_offset(head_off, cur);
+
+            while(true) {
+                for(int i = 0; i < cur.keys.size(); ++i)
+                    std::cout << cur.keys[i] << ' ' << cur.vals[i] << std::endl;
+
+                if(cur.next == -1)
+                    break;
+                get_block_by_offset(cur.next, cur);
+            }
         }
     };
 };
