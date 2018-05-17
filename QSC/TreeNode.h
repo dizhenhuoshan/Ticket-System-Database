@@ -64,21 +64,57 @@ namespace sjtu {
          * it may be regarded as finding sup of K in set of Kis */
         short search_sup(KeyType K) {
             short pos = 0;
-            while (pos < keys.size() && keys[pos] <= K) ++pos;
+            if(keys.size() < 10) {
+                while (pos < keys.size() && keys[pos] <= K) ++pos;
 
-            if (pos == keys.size()) return -1;
-            else return pos;
+                if (pos == keys.size()) return -1;
+                else return pos;
+            }
+            else {
+                int low = 0, high = keys.size() - 1;
+                int mid;
+                while(high - low >= 10) {
+                    mid = (low + high) / 2;
+                    if(keys[mid] <= K)
+                        low = mid;
+                    else
+                        high = mid;
+                }
+                while (low < keys.size() && keys[low] <= K) ++low;
+
+                if (low == keys.size()) return -1;
+                else return low;
+            }
         }
 
         /**
          * find exactly key[i] == K. if search fails, return -1
          * in the case of duplicated key, return the left-most one */
         short search_exact(const KeyType &K) {
-            short pos = 0;
-            while (pos < keys.size() && keys[pos] != K) ++pos;
+            if(keys.size() < 10) {
+                short pos = 0;
+                while (pos < keys.size() && keys[pos] != K) ++pos;
 
-            if (pos == keys.size()) return -1;
-            else return pos;
+                if (pos == keys.size()) return -1;
+                else return pos;
+            }
+            else {
+                int low = 0, high = keys.size() - 1;
+                int mid;
+                while(high - low >= 10) {
+                    mid = (low + high) / 2;
+                    if(keys[mid] == K)
+                        return mid;
+                    else if(keys[mid] < K)
+                        low = mid;
+                    else
+                        high = mid;
+                }
+                while (low < keys.size() && keys[low] != K) ++low;
+
+                if (low == keys.size()) return -1;
+                else return low;
+            }
         }
 
         /**
@@ -107,14 +143,33 @@ namespace sjtu {
          *
          * change: if not found, return -1. */
         short search_child(offsetNumber child) {
-            short i = 0;
-            while (i < childs.size() && childs[i] != child) ++i;
+            if(childs.size() < 10) {
+                short i = 0;
+                while (i < childs.size() && childs[i] != child) ++i;
 
-            if (i == childs.size()) {
-                // std::cerr << "unmatched father and childs" << std::endl;
-                return -1;
+                if (i == childs.size()) {
+                    // std::cerr << "unmatched father and childs" << std::endl;
+                    return -1;
+                }
+                else return i;
             }
-            else return i;
+            else {
+                int low = 0, high = childs.size() - 1;
+                int mid;
+                while(high - low >= 10) {
+                    mid = (low + high) / 2;
+                    if(childs[mid] == child)
+                        return mid;
+                    else if(childs[mid] < child)
+                        low = mid;
+                    else
+                        high = mid;
+                }
+                while (low < childs.size() && childs[low] != child) ++low;
+
+                if (low == childs.size()) return -1;
+                else return low;
+            }
         }
     };
 };

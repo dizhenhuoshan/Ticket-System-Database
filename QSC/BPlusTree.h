@@ -16,6 +16,13 @@ namespace sjtu {
     private:
         typedef TreeNode<KeyType, ValType> Node;
 
+        struct retT {
+            bool success;
+            bool modified;
+            retT(bool a, bool b): success(a), modified(b) { }
+            retT() {}
+        };
+
     private:
         char filename[50];
         BufferManager<KeyType, ValType> bm;
@@ -33,7 +40,7 @@ namespace sjtu {
 
     private:
 
-        bool erase_node(Node &cur, const KeyType &K) {
+        retT erase_node(Node &cur, const KeyType &K) {
             static short sbl_off = 1;
 
             if(cur.isLeaf) {
@@ -41,11 +48,11 @@ namespace sjtu {
 
                 // key doesn't exist.
                 if(delpos == -1)
-                    return false;
+                    return retT(false, false);
                 else {
                     cur.keys.erase(delpos);
                     cur.vals.erase(delpos);
-                    return true;
+                    return retT(true, true);
                 }
             }
             else {
@@ -54,14 +61,13 @@ namespace sjtu {
 
                 short ch_pos = find_child(cur, K, ch);
 
-                bool erased;
                 // 向下找子，递归进去。
-                erased = erase_node(ch, K);
+                retT ret_info = erase_node(ch, K);
 
                 // 删除未成功。
-                if(!erased) {
+                if(!ret_info.success) {
                     cnt--;
-                    return false;
+                    return retT(false, false);
                 }
 
                 // 删除成功。记得写入。
@@ -71,7 +77,7 @@ namespace sjtu {
                     if(ch.keys.size() >= (short) ceil(leaf_degree / 2.0)) {
                         bm.write_block(ch);
                         cnt--;
-                        return true;
+                        return retT(true, false);
                     }
                     // 如果太空。
                     else {
@@ -133,7 +139,7 @@ namespace sjtu {
 
                             // 删除成功。
                             cnt -= 2;
-                            return true;
+                            return retT(true, true);
                         }
                         // 借用一个，重新分配。
                         else {
@@ -159,7 +165,7 @@ namespace sjtu {
 
                                 // 删除成功。
                                 cnt -= 2;
-                                return true;
+                                return retT(true, true);
                             }
                             // symmetric situation where sibling is to the right of p.
                             else {
@@ -184,7 +190,7 @@ namespace sjtu {
 
                                 // 删除成功。
                                 cnt -= 2;
-                                return true;
+                                return retT(true, true);
                             }
                         }
                     }
@@ -193,9 +199,10 @@ namespace sjtu {
                 else {
                     // 如果不太空，直接返回。
                     if(ch.childs.size() >= (short) ceil(branch_degree / 2.0)) {
-                        bm.write_block(ch);
-                        cnt--;
-                        return true;
+                        if(ret_info.modified)
+                            bm.write_block(ch);
+                        --cnt;
+                        return retT(true, false);
                     }
                     // 如果太空。
                     else {
@@ -253,7 +260,7 @@ namespace sjtu {
 
                             // 删除成功。
                             cnt -= 2;
-                            return true;
+                            return retT(true, true);
                         }
                             // 借用一个，重新分配。
                         else {
@@ -279,7 +286,7 @@ namespace sjtu {
 
                                 // 删除成功。
                                 cnt -= 2;
-                                return true;
+                                return retT(true, true);
                             }
                                 // symmetric situation where sibling is to the right of p.
                             else {
@@ -304,7 +311,7 @@ namespace sjtu {
 
                                 // 删除成功。
                                 cnt -= 2;
-                                return true;
+                                return retT(true, true);
                             }
                         }
                     }
@@ -313,56 +320,43 @@ namespace sjtu {
         }
 
         KeyType split_branch(Node &B, Node &B_next) {
-        #ifdef LOG
-            std::cout << "split_branch" << std::endl;
-        #endif
-            Node &tmp = pool[cnt++];
-            tmp = B;
-            B.clear_content();
+     #ifdef LOG
+         std::cout << "split_branch" << std::endl;
+     #endif
+         short mid = (short) ceil(branch_degree / 2.0);
+         KeyType mid_key = B.keys[mid - 1];
 
-            short mid = (short) ceil(branch_degree / 2.0);
-            KeyType mid_key = tmp.keys[mid - 1];
+         B_next.childs.assign(B.childs, mid, B.childs.size());
+         B_next.keys.assign(B.keys, mid, B.keys.size());
 
-            B.childs.assign(tmp.childs, 0, mid);
-            B.keys.assign(tmp.keys, 0, mid - (short) 1);
+         B.childs.shorten_len(mid);
+         B.keys.shorten_len(mid - (short)1);
+         return mid_key;
+     }
 
-            B_next.childs.assign(tmp.childs, mid, tmp.childs.size());
-            B_next.keys.assign(tmp.keys, mid, tmp.keys.size());
+     /** sub-function used by insert_in_leaf()
+     *
+     * when leaf key number exceeds degree, it has to be split into two,
+     * in which case key number will be exactly 'degree + 1'.
+     *
+     * the first node receives ceil((degree) / 2) keys
+     * the second node receives the rest of them.
+     * note that second node's key number always lies in BPlusTree key number range.
+     *
+     * example: degree = 5; range = [2, 4]; first = 2; second = 3.
+     *          degree = 6; range = [3, 5]; first = 3; second = 3. */
+     void split_leaf(Node &L, Node &L_next) {
+     #ifdef LOG
+         std::cout << "split_leaf" << std::endl;
+     #endif
+         short mid = (short) std::ceil((leaf_degree) / (2.0));
 
-            cnt--;
-            return mid_key;
-        }
+         L_next.keys.assign(L.keys, mid, L.keys.size());
+         L_next.vals.assign(L.vals, mid, L.vals.size());
 
-        /** sub-function used by insert_in_leaf()
-        *
-        * when leaf key number exceeds degree, it has to be split into two,
-        * in which case key number will be exactly 'degree + 1'.
-        *
-        * the first node receives ceil((degree) / 2) keys
-        * the second node receives the rest of them.
-        * note that second node's key number always lies in BPlusTree key number range.
-        *
-        * example: degree = 5; range = [2, 4]; first = 2; second = 3.
-        *          degree = 6; range = [3, 5]; first = 3; second = 3. */
-        void split_leaf(Node &L, Node &L_next) {
-        #ifdef LOG
-            std::cout << "split_leaf" << std::endl;
-        #endif
-            Node &tmp = pool[cnt++];
-            tmp = L;
-            L.clear_content();
-
-            short mid = (short) std::ceil((leaf_degree) / (2.0));
-
-            L.keys.assign(tmp.keys, 0, mid);    // assign mid number of keys.
-            L.vals.assign(tmp.vals, 0, mid);
-
-            L_next.keys.assign(tmp.keys, mid, tmp.keys.size());
-            L_next.vals.assign(tmp.vals, mid, tmp.vals.size());
-
-            cnt--;
-        }
-
+         L.keys.shorten_len(mid);
+         L.vals.shorten_len(mid);
+     }
 
         /** sub-function used by insert_node()
          *
@@ -393,24 +387,25 @@ namespace sjtu {
             return true;
         }
 
-        bool insert_node(Node &cur, const KeyType &K, const ValType &V) {
+        retT insert_node(Node &cur, const KeyType &K, const ValType &V) {
             if (cur.isLeaf) {
-                return insert_in_leaf(cur, K, V);       // return false is exists.
+                bool success = insert_in_leaf(cur, K, V);
+                return retT(success, success);        // return false is exists.
             } else {
                 Node &ch = pool[cnt++];
-                bool success;
+                retT ret_info;
 
                 // 向下找子。
                 short ch_pos = find_child(cur, K, ch);
 
                 // 递归进去。
-                success = insert_node(ch, K, V);
+                ret_info = insert_node(ch, K, V);
 
                 // 处理儿子和自己。
                 // 1. 插入未成功。
-                if (!success) {
+                if (!ret_info.success) {
                     cnt--;
-                    return false;
+                    return retT(false, false);
                 }
                 // 2. 插入成功。
                 // （按照不同的类型，分别处理儿子）
@@ -419,7 +414,7 @@ namespace sjtu {
                     if (ch.keys.size() <= leaf_degree) {
                         bm.write_block(ch);
                         cnt--;
-                        return true;
+                        return retT(true, false);
                     }
                         // 如果需要分裂，处理儿子和自己。
                     else {
@@ -439,7 +434,7 @@ namespace sjtu {
                         bm.write_block(newLeaf);
 
                         cnt -= 2;
-                        return true;
+                        return retT(true, true);
                     }
                 }
                     // 儿子结点为树枝。
@@ -448,7 +443,7 @@ namespace sjtu {
                     if (ch.childs.size() <= branch_degree) {
                         bm.write_block(ch);
                         cnt--;
-                        return true;
+                        return retT(true, false);
                     }
                         // 如果需要分裂，处理儿子和自己。
                     else {
@@ -463,7 +458,7 @@ namespace sjtu {
                         bm.write_block(ch);
                         bm.write_block(newBranch);
                         cnt -= 2;
-                        return true;
+                        return retT(true, true);
                     }
                 }
 
@@ -582,7 +577,6 @@ namespace sjtu {
             std::cout << std::endl << cnt << " insert log starts: " << std::endl;
         #endif
             Node &root = pool[cnt++];
-            bool success;
 
             if (bm.root_off == -1) {
                 bm.append_block(root, true);     // append a new block.
@@ -601,9 +595,9 @@ namespace sjtu {
             }
 
             bm.get_root(root);
-            success = insert_node(root, K, V);
+            retT ret_info = insert_node(root, K, V);
 
-            if (!success) {
+            if (!ret_info.success) {
                 cnt--;
                 return false;
             }
@@ -638,7 +632,8 @@ namespace sjtu {
                     }
                     // 如果没出事，写入根节点。
                     else {
-                        bm.write_block(root);
+                        if(ret_info.modified)
+                            bm.write_block(root);
                         cnt--;
                         return true;
                     }
@@ -666,7 +661,8 @@ namespace sjtu {
                     }
                     else {
                         // 如果没出事，写入根节点。
-                        bm.write_block(root);
+                        if(ret_info.modified)
+                            bm.write_block(root);
                         cnt--;
                         return true;
                     }
@@ -689,11 +685,11 @@ namespace sjtu {
             }
 
             Node &root = pool[cnt++];
-            bool erased;
+            retT ret_info;
             bm.get_root(root);
-            erased = erase_node(root, K);
+            ret_info = erase_node(root, K);
 
-            if(!erased) {
+            if(!ret_info.success) {
                 cnt--;
                 return false;
             }
@@ -704,6 +700,8 @@ namespace sjtu {
                     if(root.keys.size() == 0) {
                         bm.root_off = bm.head_off = bm.tail_off = -1;
                     }
+                    if(ret_info.modified)
+                        bm.write_block(root);
                 }
                 // 根节点——树枝结点只有一个儿子时，减小树高。
                 else {
@@ -714,8 +712,10 @@ namespace sjtu {
                     if(root.childs.size() == 1) {
                         bm.root_off = root.childs[0];
                     }
+                    else
+                        if(ret_info.modified)
+                            bm.write_block(root);
                 }
-                bm.write_block(root);
                 cnt--;
                 // 删除成功。
                 return true;

@@ -114,6 +114,10 @@ namespace sjtu {
         void file_write(FILE *&fp) {
             fwrite(arr, sizeof(ElemType), (size_t) len, fp);
         }
+        
+        void shorten_len(short newLen) {
+            len = newLen;
+        }
     };
 };
 

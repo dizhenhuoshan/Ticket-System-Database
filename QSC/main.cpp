@@ -38,11 +38,12 @@ int main() {
     double st, et;
 
     ///st = t.get_time();
-    sjtu::UniqueBPlusTree<int, sjtu::Loc_Key> bp("test6");
+    sjtu::UniqueBPlusTree<int, sjtu::Train_id_Key> bp("test6");
     bp.open_file();
     for(int i = 0; i < 1000000; ++i) {
-        bp.insert(rand(), sjtu::Loc_Key(i + '0'));
+        bp.insert(i, sjtu::Train_id_Key("test string"));
     }
+	bp.close_file();
     /*for (int i = 0; i < 100000; i++)
     {
         bp.erase(i);
