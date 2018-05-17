@@ -11,13 +11,13 @@ namespace sjtu {
     class vector {
     private:
         // ElemType *arr;
-        ElemType arr[blockSize];
+        ElemType arr[blockSize * 2 / sizeof(ElemType)];
         short len;
-        int mallocSize;
+        // int mallocSize;
 
     public:
         explicit vector(const int &&size) {
-            mallocSize = size;
+            // mallocSize = size;
             // arr = new ElemType[mallocSize];
             len = 0;
         }
@@ -114,7 +114,7 @@ namespace sjtu {
         void file_write(FILE *&fp) {
             fwrite(arr, sizeof(ElemType), (size_t) len, fp);
         }
-        
+
         void shorten_len(short newLen) {
             len = newLen;
         }
