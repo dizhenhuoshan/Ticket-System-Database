@@ -39,7 +39,7 @@ namespace sjtu
     class Ticket_Key
     {
     private:
-        
+
     };
 
     /* Train_id_Key is the key used for train id */
