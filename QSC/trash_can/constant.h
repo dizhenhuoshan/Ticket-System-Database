@@ -16,7 +16,7 @@ namespace sjtu {
     typedef int offsetNumber;                   // offset in file as address.
     const offsetNumber tree_utility_byte = 28;
     const offsetNumber node_utility_byte = 15;
-    const int blockSize = 100;
+    const int blockSize = 4096;
 };
 
 #endif //MYDATABASE_CONSTANT_H
