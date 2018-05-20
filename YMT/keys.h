@@ -197,11 +197,13 @@ namespace sjtu
     private:
         char loc[maxm];
         char train_id[maxm];
+        char train_type;
     public:
         Station_Key()
         {
             memset(loc, 0, sizeof(loc));
             memset(train_id, 0, sizeof(train_id));
+            train_type = 0;
         }
         /*
             Special creator:
@@ -221,16 +223,19 @@ namespace sjtu
                 for (int i = 0; i < maxm; i++)
                     loc[i] = 254;
             }
+            train_type = 0;
         }
         Station_Key(const Station_Key &other)
         {
             memcpy(loc, other.loc, sizeof(loc));
             memcpy(train_id, other.train_id, sizeof(train_id));
+            train_type = other.train_type;
         }
-        Station_Key(const char objloc[], const char objtrain_id[])
+        Station_Key(const char objloc[], const char objtrain_id[], const char objtrain_type)
         {
             memcpy(loc, objloc, sizeof(loc));
             memcpy(train_id, objtrain_id, sizeof(train_id));
+            train_type = objtrain_type;
         }
         ~Station_Key() {}
 
@@ -273,6 +278,7 @@ namespace sjtu
 
         char* get_loc() {return loc;}
         char* get_train_id() {return train_id;}
+        char get_train_type() {return train_type;}
     };
 
     /* Buyer_Key is a special key for the buyer */
@@ -280,6 +286,7 @@ namespace sjtu
     {
     private:
         unsigned int user_id;
+        short num;
         char train_id[maxm];
         char from[maxm];
         char des[maxm];
@@ -342,6 +349,7 @@ namespace sjtu
         */
         Buyer_Key(unsigned int objuser_id = 0, int i = 2)
         {
+            num = 0;
             user_id = objuser_id;
             if (i == 2)
             {
@@ -378,11 +386,12 @@ namespace sjtu
             memcpy(des, other.des, sizeof(des));
             memcpy(ticket_kind, other.ticket_kind, sizeof(ticket_kind));
             user_id = other.user_id;
+            num = other.num;
             date_year = other.date_year;
             date_month = other.date_month;
             date_day = other.date_day;
         }
-        Buyer_Key(const unsigned int objuser_id, const char objtrain_id[], const char objfrom[], const char objdes[], const char objticket_kind[], const char date[])
+        Buyer_Key(const unsigned int objuser_id, short objnum, const char objtrain_id[], const char objfrom[], const char objdes[], const char objticket_kind[], const char date[])
         {
             memcpy(train_id, objtrain_id, sizeof(train_id));
             memcpy(from, objfrom, sizeof(from));
@@ -390,6 +399,7 @@ namespace sjtu
             memcpy(ticket_kind, objticket_kind, sizeof(ticket_kind));
             string_to_date(date_year, date_month, date_day, date);
             user_id = objuser_id;
+            num = objnum;
         }
         ~Buyer_Key() {}
 
@@ -488,6 +498,7 @@ namespace sjtu
         }
 
         unsigned int get_user_id() {return user_id;}
+        short get_num()         {return num;}
         char* get_train_id()    {return train_id;}
         char* get_from()        {return from;}
         char* get_des()         {return des;}

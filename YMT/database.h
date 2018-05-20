@@ -35,8 +35,8 @@ namespace sjtu
         UniqueBPlusTree<User_id_Key, User_Data>     user("user.db");
         UniqueBPlusTree<Train_Key, Train_Data>      train("train.db");
         UniqueBPlusTree<Ticket_Key, Ticket_Data>    ticket("ticket.db");
-        UniqueBPlusTree<Station_Key, char>          station("station.db");
-        UniqueBPlusTree<Buyer_Key, short>           buyer("buyer.db");
+        UniqueBPlusTree<Station_Key, Empty>          station("station.db");
+        UniqueBPlusTree<Buyer_Key, Empty>           buyer("buyer.db");
 
         template<T>
         void quick_sort(T a[], int l, int r)
@@ -152,19 +152,37 @@ namespace sjtu
         These are orders for ticket database
     */
     //unfinished -- seg_search needed;
-    int query_ticket(char loc1[], char loc2[], char date, char catalog[], vector &v;)
+    int query_ticket(char loc1[], char loc2[], char date, char catalog[])
     {
-        Station_Key max_key(loc1, 1);
-        Station_Key min_key(loc1, 0);
+        Station_Key max_key1(loc1, 1);
+        Station_Key min_key1(loc1, 0);
+        Station_Key max_key2(loc2, 1);
+        Station_Key min_key2(loc2, 0);
         Station_Key *loc1_train = new Station_Key[maxs];
         Station_Key *loc2_train = new Station_Key[maxs];
+
+        int loc1_train_num = 0;
+        int loc2_train_num = 0;
+        int cnt = 0;
+
+        station.get_range(min_key1, max_key1, loc1_train, loc1_train_num);
+        station.get_range(min_key2, max_key2, loc2_train, loc2_train_num);
+
+        int len = min(loc1_train_num, loc2_train_num);
+        
+
+
     }
 
     bool query_transfer() {}
 
     bool buy_ticket(unsigned int id, short num, char train_id[], char loc1[], char loc2[], char date[], char ticket_kind[])
     {
-        if (user.find(id))
+        if (user.find(id).privilege == 57)  return false;
+        if (ticket.)
+        Buyer_Key key(id, train_id, loc1, loc2, ticket_kind, date);
+        short data = num;
+        buyer.insert(key, data);
     }
 
 

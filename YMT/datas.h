@@ -3,7 +3,7 @@
 #include <cstring>
 #include "constant.h"
 
-namespace data
+namespace sjtu
 {
     /* User_Data is the user information for registering */
     /* Using Keys: user_id */
@@ -209,9 +209,9 @@ namespace data
     };
 
     /*
-     * City_Data is to store information of trains in a station
-     * Using char is enough.
-     * Using Keys: loc specific_rand_id
+    *   Empty is for buyer database and station database for better performance.
     */
+
+    class Empty{};
 };
 #endif
