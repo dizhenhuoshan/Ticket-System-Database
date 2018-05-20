@@ -30,6 +30,7 @@ namespace sjtu {
 
         bool isOpened;              /// has file pointer opened file.
 
+        Node pool;
         /** when B+ tree do insert and erase, it has to update head_off and tail_off.
          * I don't know how to use friend class... I have to admit. */
     public:
@@ -54,6 +55,7 @@ namespace sjtu {
         int allocSize;
     public:
         int logicSize;
+        offsetNumber trash_off;     /// get head block of trash can.
 
     private:
         /**
@@ -74,13 +76,14 @@ namespace sjtu {
         void createFile() {
             fp = fopen(filename, "w");
 
-            root_off = head_off = tail_off = -1;
+            trash_off = root_off = head_off = tail_off = -1;
             append_off = 0;
             logicSize = allocSize = 0;
             fwrite(&root_off, sizeof(int), 1, fp);
             fwrite(&head_off, sizeof(int), 1, fp);
             fwrite(&tail_off, sizeof(int), 1, fp);
             fwrite(&append_off, sizeof(int), 1, fp);
+            fwrite(&trash_off, sizeof(int), 1, fp);
             fwrite(&logicSize, sizeof(int), 1, fp);
             fwrite(&allocSize, sizeof(int), 1, fp);
 
@@ -99,6 +102,7 @@ namespace sjtu {
                 fread(&head_off, sizeof(int), 1, fp);
                 fread(&tail_off, sizeof(int), 1, fp);
                 fread(&append_off, sizeof(int), 1, fp);
+                fread(&trash_off, sizeof(int), 1, fp);
                 fread(&logicSize, sizeof(int), 1, fp);
                 fread(&allocSize, sizeof(int), 1, fp);
             }
@@ -108,7 +112,7 @@ namespace sjtu {
         BufferManager() {
             filename[0] = '\0';
             isOpened = false;
-            root_off = head_off = tail_off = -1;
+            trash_off = root_off = head_off = tail_off = -1;
             append_off = -1;        /// -1 is a special value for append_off under closed file condition.
             allocSize = logicSize = -1;
             fp = nullptr;
@@ -156,6 +160,7 @@ namespace sjtu {
                  fwrite(&head_off, sizeof(int), 1, fp);
                  fwrite(&tail_off, sizeof(int), 1, fp);
                  fwrite(&append_off, sizeof(int), 1, fp);
+                 fwrite(&trash_off, sizeof(int), 1, fp);
                  fwrite(&logicSize, sizeof(int), 1, fp);
                  fwrite(&allocSize, sizeof(int), 1, fp);
 
@@ -253,12 +258,20 @@ namespace sjtu {
          * do memory operation first, write in disk later. */
         void append_block(Node &ret, bool isLeaf) {
             ret.clear();
-            ret.addr = (append_off == 0) ? tree_utility_byte : append_off;
-            ret.isLeaf = isLeaf;
 
-            append_off += blockSize;
-            ++allocSize;
+            if(trash_off != -1) {
+                ret.addr = trash_off;
+                get_block_by_offset(trash_off, pool);
+                trash_off = pool.next;
+            }
+            else {
+                ret.addr = (append_off == 0) ? tree_utility_byte : append_off;
+                append_off += blockSize;
+                ++allocSize;
+            }
+            ret.isLeaf = isLeaf;
         }
+
         /** write node into where it belongs. */
         void write_block(Node &cur) {
             fseek(fp, cur.addr, SEEK_SET);

@@ -25,6 +25,7 @@ namespace sjtu {
 
 
         char filename[50];
+    public: //
         BufferManager<KeyType, ValType> bm;
 
     private:
@@ -137,6 +138,10 @@ namespace sjtu {
 
                             // 写入儿子，即使右儿子没什么卵用也暂时写入它。
                             bm.write_block(*l_node);
+
+                            // dump right child into trash can.
+                            r_node->next = bm.trash_off;
+                            bm.trash_off = r_node->addr;
                             bm.write_block(*r_node);
 
                             // 删除成功。
@@ -260,6 +265,11 @@ namespace sjtu {
                             bm.write_block(*l_node);
                             bm.write_block(*r_node);
 
+                            // dump right child into trash can.
+                            r_node->next = bm.trash_off;
+                            bm.trash_off = r_node->addr;
+                            bm.write_block(*r_node);
+
                             // 删除成功。
                             cnt -= 2;
                             return retT(true, true);
@@ -374,8 +384,15 @@ namespace sjtu {
             short i = cur.search_sup(K);
 
             // check K existence.
-            if (i != -1 && i != 1 && cur.keys[i - 1] == K)
-                return false;
+            // if no key greater than K, check the last one.
+            if(i == -1) {
+                if(cur.keys[cur.keys.size() - 1] == K)
+                    return false;
+            }
+            else {
+                if(i != 0 && cur.keys[i - 1] == K)
+                    return false;
+            }
 
             // insert.
             if (i == -1)     // no sup, insert in the back.
@@ -761,6 +778,11 @@ namespace sjtu {
                 if(root.isLeaf) {
                     if(root.keys.size() == 0) {
                         bm.root_off = bm.head_off = bm.tail_off = -1;
+
+                        // dump root into trash can.
+                        root.next = bm.trash_off;
+                        bm.trash_off = root.addr;
+                        bm.write_block(root);
                     }
                     if(ret_info.modified)
                         bm.write_block(root);
@@ -773,6 +795,11 @@ namespace sjtu {
 //                    #endif
                     if(root.childs.size() == 1) {
                         bm.root_off = root.childs[0];
+
+                        // dump root into trash can.
+                        root.next = bm.trash_off;
+                        bm.trash_off = root.addr;
+                        bm.write_block(root);
                     }
                     else
                         if(ret_info.modified)
