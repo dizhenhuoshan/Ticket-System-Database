@@ -3,42 +3,8 @@
 #include "datas.h"
 #include "BplusTree.h"
 
-namespace wymt
+namespace sjtu
 {
-    //some const data, same as the data in datas.h
-    const int maxn = 40;
-    const int maxm = 21;
-    const int maxc = 10;
-    const int maxe = 5;
-
-/*
- *  Main Database List:
- *  1. user --information of the user
- *          --Using key:: User_id_Key
- *          --Using data:: User_Data
- *
- *  2. train --information of the train except the station
- *           --Using key::Train_Key
- *           --Using data::Train_Data
- *
- *  3. ticket --ticket information of one train
- *            --Uisng key::Ticket_Key
- *            --Using data::Ticket_Data
- *
- *  4. station --information of the passed trains of a station
- *             --Using key::Station_Key
- *             --Using data::char  Detials: '?'--Not defined; 'S' --start station; 'P' --passed station; 'F' --final station
- *
- *  5. buyer --information of the bought ticket for a user
- *           --Using key::Buyer_Key
- *           --Using data::short   Detials: short for the num of the ticket
- */
-sjtu::UniqueBPlusTree<key::User_id_Key, data::User_Data> user("user.db");
-sjtu::UniqueBPlusTree<key::Train_Key, data::Train_Data> train("train.db");
-sjtu::UniqueBPlusTree<key::Ticket_Key, data::Ticket_Data> ticket("ticket.db");
-sjtu::UniqueBPlusTree<key::Station_Key, char> station("station.db");
-sjtu::UniqueBPlusTree<key::Buyer_Key, short> buyer("buyer.db");
-
    //*analyse the orders*/
 /*
 *   Types:
@@ -64,7 +30,8 @@ sjtu::UniqueBPlusTree<key::Buyer_Key, short> buyer("buyer.db");
 *       41 -- clean
 *       42 -- exit
 */
-int param_reader(char order[])
+
+int parser_reader(char order[])
 {
     if (strcmp(order, "register") == 0)         return 11;
     if (strcmp(order, "login") == 0)            return 12;
@@ -84,11 +51,5 @@ int param_reader(char order[])
     if (strcmp(order, "clean") == 0)            return 41;
     if (strcmp(order, "exit") == 0)             return 42;
 }
-
-
-
-
-
-
 
 };

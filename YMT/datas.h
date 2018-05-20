@@ -1,14 +1,10 @@
 #ifndef DATAS_HPP
 #define DATAS_HPP
 #include <cstring>
+#include "constant.h"
 
 namespace data
 {
-    const int maxn = 41; //max length for user_name
-    const int maxm = 21; //max length for usually other things
-    const int maxc = 11; //max length for catalog
-    const int maxe = 5; //max length for ticket type
-
     /* User_Data is the user information for registering */
     /* Using Keys: user_id */
     class User_Data

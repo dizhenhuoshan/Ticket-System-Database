@@ -1,8 +1,9 @@
 #ifndef KEYS_HPP
 #define KEYS_HPP
 #include <cstring>
+#include "constant.h"
 
-namespace key
+namespace sjtu
 {
     const int maxn = 41;
     const int maxm = 21;
