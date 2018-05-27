@@ -41,6 +41,20 @@ namespace sjtu {
         /// append_off always exist. This can't be modified.
         offsetNumber append_off;    /// get a new block when append.
 
+        /** logicSize means how many piece of data info in current B+ tree.
+         * allocSize means how mnay blocks have been allocated by bufferManager.
+         *
+         * These two things must be read and write in file head as basic information,
+         * so they are members of buffermanager.
+         *
+         * allocSize is invisible to B+ tree --------- set as private.
+         * BufferManager knows little about logicSize. -------- set as public, letting B+ tree to maintain it.
+         * */
+    private:
+        int allocSize;
+    public:
+        int logicSize;
+
     private:
         /**
          * try to open file, if fail, return false. */
@@ -62,10 +76,13 @@ namespace sjtu {
 
             root_off = head_off = tail_off = -1;
             append_off = 0;
+            logicSize = allocSize = 0;
             fwrite(&root_off, sizeof(int), 1, fp);
             fwrite(&head_off, sizeof(int), 1, fp);
             fwrite(&tail_off, sizeof(int), 1, fp);
             fwrite(&append_off, sizeof(int), 1, fp);
+            fwrite(&logicSize, sizeof(int), 1, fp);
+            fwrite(&allocSize, sizeof(int), 1, fp);
 
             fclose(fp);
         }
@@ -82,6 +99,8 @@ namespace sjtu {
                 fread(&head_off, sizeof(int), 1, fp);
                 fread(&tail_off, sizeof(int), 1, fp);
                 fread(&append_off, sizeof(int), 1, fp);
+                fread(&logicSize, sizeof(int), 1, fp);
+                fread(&allocSize, sizeof(int), 1, fp);
             }
         }
 
@@ -91,6 +110,7 @@ namespace sjtu {
             isOpened = false;
             root_off = head_off = tail_off = -1;
             append_off = -1;        /// -1 is a special value for append_off under closed file condition.
+            allocSize = logicSize = -1;
             fp = nullptr;
         }
 
@@ -136,10 +156,14 @@ namespace sjtu {
                  fwrite(&head_off, sizeof(int), 1, fp);
                  fwrite(&tail_off, sizeof(int), 1, fp);
                  fwrite(&append_off, sizeof(int), 1, fp);
+                 fwrite(&logicSize, sizeof(int), 1, fp);
+                 fwrite(&allocSize, sizeof(int), 1, fp);
+
                  fclose(fp);
 
                  root_off = head_off = tail_off = -1;   /// maintain.
                  append_off = -1;        /// -1 is a special value for append_off under closed file condition.
+                 logicSize = allocSize = -1;
                  fp = nullptr;
                  isOpened = false;
 
@@ -184,7 +208,8 @@ namespace sjtu {
             }
         }
 
-        /** if root_off == 0 */
+        /** if root_off == 0
+         * root_off == -1 means no root. */
         bool get_root(Node &ret) {
             if(root_off == -1) return false;
 
@@ -232,8 +257,8 @@ namespace sjtu {
             ret.isLeaf = isLeaf;
 
             append_off += blockSize;
+            ++allocSize;
         }
-
         /** write node into where it belongs. */
         void write_block(Node &cur) {
             fseek(fp, cur.addr, SEEK_SET);
@@ -251,62 +276,7 @@ namespace sjtu {
             fwrite(&cur.next, sizeof(offsetNumber), 1, fp);
         }
 
-        /** forgive me, it's just such ugly. */
-        void write_block_skip_father(Node &cur) {
-            fseek(fp, cur.addr, SEEK_SET);
 
-            fwrite(&cur.isLeaf, sizeof(bool), 1, fp);
-
-            short tmp = cur.keys.size();        fwrite(&tmp, sizeof(short), 1, fp);
-            tmp = cur.vals.size();              fwrite(&tmp, sizeof(short), 1, fp);
-            tmp = cur.childs.size();            fwrite(&tmp, sizeof(short), 1, fp);
-
-            cur.keys.file_write(fp);
-            cur.vals.file_write(fp);
-            cur.childs.file_write(fp);
-
-            fseek(fp, sizeof(offsetNumber), SEEK_CUR);
-            fwrite(&cur.next, sizeof(offsetNumber), 1, fp);
-        }
-        void set_root(offsetNumber rtoff) {
-            root_off = rtoff;
-        }
-
-        offsetNumber get_root() {
-            return root_off;
-        }
-
-        /*
-        /// check whether parent and children are linked properly.
-        void check_link() {
-            if(root_off == -1) {
-                printf("tree is empty, link properly\n");
-                return;
-            }
-
-            std::queue<offsetNumber> q;
-            q.push(root_off);
-
-            while(!q.empty()) {
-                offsetNumber off;
-                Node node;
-
-                off = q.front();
-                q.pop();
-                get_block_by_offset(off, node);
-
-                for(int i = 0; i < node.childs.size(); ++i) {
-                    Node ch;
-                    get_block_by_offset(node.childs[i], ch);
-                    if(ch.parent != node.addr) {
-                        fprintf(stderr, "link is break\n");
-                        return;
-                    }
-                }
-            }
-            printf("tree links properly\n");
-        }
-        */
         void traverse() {
             if(head_off == -1) {
                 printf("traverse empty tree\n");

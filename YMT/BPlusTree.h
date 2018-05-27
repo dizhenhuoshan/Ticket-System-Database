@@ -23,9 +23,11 @@ namespace sjtu {
             retT() {}
         };
 
-    private:
+
         char filename[50];
         BufferManager<KeyType, ValType> bm;
+
+    private:
 
         /**
         * leaf node key number range: [ceil((degree - 1) / 2), degree - 1]
@@ -35,8 +37,8 @@ namespace sjtu {
         int K_byte, V_byte;
 
         Node pool[50];
-    public:
         int cnt;
+
 
     private:
 
@@ -498,6 +500,7 @@ namespace sjtu {
 
             K_byte = sizeof(KeyType), V_byte = sizeof(ValType);
             cnt = 0;
+
             /**
              * tree utility is stored in file head, which is followed by a leaf node (the first node in an file is always leaf node).
              * Note key and child number differ by 1 in branch. */
@@ -547,6 +550,55 @@ namespace sjtu {
                 return ret.vals[i];
         }
 
+        /** get data lies between low key and high key, excluding two key values.
+         * return value array and data length. */
+        void get_range(KeyType low, KeyType high, ValType arr[], int &len) {
+            len = 0;
+            Node &lowLeaf = pool[cnt++];
+            search_to_leaf(low, lowLeaf);
+
+            // find Key: low.
+            short pos = 0;
+            while(pos < lowLeaf.keys.size() && lowLeaf.keys[pos] <= low)
+                ++pos;
+            if(pos == lowLeaf.keys.size()) {
+                if(lowLeaf.next == -1) {
+                    fprintf(stderr, "nothing greater than low\n");
+                    len = 0;
+                    --cnt;
+                    return;
+                }
+                bm.get_block_by_offset(lowLeaf.next, lowLeaf);
+                pos = 0;
+            }
+            if(lowLeaf.keys[pos] >= high) {
+                fprintf(stderr, "nothing between low and high\n");
+                len = 0;
+                --cnt;
+                return;
+            }
+
+            // traverse and fill arr.
+            while(lowLeaf.keys[pos] < high) {
+                arr[len++] = lowLeaf.vals[pos];
+                // update leaf and pos for the next elem.
+
+                // jump to next leaf.
+                if(pos == lowLeaf.keys.size() - 1) {
+                    if(lowLeaf.next == -1) {
+                        --cnt;
+                        return;
+                    }
+                    else {
+                        bm.get_block_by_offset(lowLeaf.next, lowLeaf);
+                        pos = 0;
+                    }
+                }
+                else
+                    ++pos;
+            }
+            --cnt;
+        }
         /**
          * overwrite existing key, return false if key isn't found. */
         bool modify(KeyType K, ValType V) {
@@ -584,13 +636,15 @@ namespace sjtu {
                 root.keys.push_back(K);
                 root.vals.push_back(V);
 
-                bm.set_root(root.addr);          // update root.
+                bm.root_off = root.addr;  // update root.
                 bm.write_block(root);
 
                 // maintain a list.
                 bm.head_off = root.addr;
                 bm.tail_off = root.addr;
                 cnt--;
+
+                bm.logicSize++;
                 return true;
             }
 
@@ -628,6 +682,8 @@ namespace sjtu {
                         bm.write_block(newLeaf);
                         bm.write_block(newRoot);
                         cnt -= 3;
+
+                        bm.logicSize++;
                         return true;
                     }
                     // 如果没出事，写入根节点。
@@ -635,6 +691,8 @@ namespace sjtu {
                         if(ret_info.modified)
                             bm.write_block(root);
                         cnt--;
+
+                        bm.logicSize++;
                         return true;
                     }
                 } else {
@@ -657,6 +715,8 @@ namespace sjtu {
                         bm.write_block(newBranch);
                         bm.write_block(newRoot);
                         cnt -= 3;
+
+                        bm.logicSize++;
                         return true;
                     }
                     else {
@@ -664,6 +724,8 @@ namespace sjtu {
                         if(ret_info.modified)
                             bm.write_block(root);
                         cnt--;
+
+                        bm.logicSize++;
                         return true;
                     }
 
@@ -718,8 +780,13 @@ namespace sjtu {
                 }
                 cnt--;
                 // 删除成功。
+                bm.logicSize--;
                 return true;
             }
+        }
+
+        int size() {
+            return bm.logicSize;
         }
 
         /** perform a level order traversal for B tree. */

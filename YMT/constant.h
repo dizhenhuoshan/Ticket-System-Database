@@ -15,6 +15,7 @@ namespace sjtu {
     const offsetNumber tree_utility_byte = 16;
     const offsetNumber node_utility_byte = 15;
     const int blockSize = 4096;
+    const int maxl = 50; //max stations a train will passed.
     const int maxs = 1000; //max train at one station;
     const int maxt = 200; //max train from loc1 to loc2;
     const int maxn = 41; //max length for user_name

@@ -17,7 +17,7 @@ namespace sjtu
      *           --Using key::Train_Key
      *           --Using data::Train_Data
      *
-     *  3. ticket --ticket information of one train
+     *  3. ticket --ticket(every station) information of one train
      *            --Uisng key::Ticket_Key
      *            --Using data::Ticket_Data
      *
@@ -38,7 +38,7 @@ namespace sjtu
         UniqueBPlusTree<Station_Key, Empty>          station("station.db");
         UniqueBPlusTree<Buyer_Key, Empty>           buyer("buyer.db");
 
-        template<T>
+        /*quick_sort for Ticket_Data to ensure that the */
         void quick_sort(T a[], int l, int r)
         {
             if (l >= r)
@@ -148,43 +148,166 @@ namespace sjtu
             }
         }
 
-    /*
-        These are orders for ticket database
-    */
-    //unfinished -- seg_search needed;
-    int query_ticket(char loc1[], char loc2[], char date, char catalog[])
-    {
-        Station_Key max_key1(loc1, 1);
-        Station_Key min_key1(loc1, 0);
-        Station_Key max_key2(loc2, 1);
-        Station_Key min_key2(loc2, 0);
-        Station_Key *loc1_train = new Station_Key[maxs];
-        Station_Key *loc2_train = new Station_Key[maxs];
+        bool add_train(char train_id[], char train_name[], char catalog[], char nstation, char nprice, char ticket_kind[][maxm], Station_Query qsta[])
+        {
+            Train_Key train_key(id);
+            if (train.find(train_id).get_station_num() != 0)
+                return false;
+            Train_Data train_data(train_name, ticket_kind, catalog, nstation, nprice);
+            train.insert(train_key, train_data);
+            for (int i = 0; i < nstation, i++)
+            {
+                Ticket_Key ticket_key(train_id, qsta[i].station, (char)i + 1);
+                Ticket_Data ticket_data(qsta[i]);
+                ticket.insert(ticket_key, ticket_data);
+            }
+            return true;
+        }
 
-        int loc1_train_num = 0;
-        int loc2_train_num = 0;
-        int cnt = 0;
+        bool sale_train(char train_id[])
+        {
+            Train_Key key(train_id);
+            Train_Data data = train.find(key);
+            if (data.get_sale() == 1)
+                return false;
+            else
+            {
+                Train_Data mdata = (data, true);
+                train.modify(key, mdata);
+            }
+        }
 
-        station.get_range(min_key1, max_key1, loc1_train, loc1_train_num);
-        station.get_range(min_key2, max_key2, loc2_train, loc2_train_num);
+        bool query_train(char train_id[], Train_Query &tra, Station_Query sta[], int &num)
+        {
+            Train_Key train_key(train_id);
+            Train_Data train_data = train.find(train_id);
+            if (train_data.get_station_num() == 0)
+                return false;
+            tra = Train_Query(train_data);
+            Ticket_Key min_key(train_id, 0);
+            Ticket_Key max_key(train_id, 1);
+            Ticket_Data *stations = new Ticket_Data[maxl];
+            ticket.get_range(min_key, max_key, stations, num);
+            for (int i = 0; i < num; i++)
+                sta[i] = Station_Query(stations[i]);
+            return true;
+        }
 
-        int len = min(loc1_train_num, loc2_train_num);
-        
+        bool delete_train(char train_id[])
+        {
+            if (train.find(Train_Key(train_id)).is_sale == 1)
+                return false;
+            Train_Query tra;
+            Station_Query *sta = new Station_Query[maxl];
+            int numsta = 0;
+            query_ticket(train_id, tra, sta, numsta);
+            for (int i = 0; i < numsta; i++)
+            {
+                station.erase(Station_Key(sta[i].station, train_id));
+                ticket.erase(Ticket_Key(train_id, sta[i].station, 0));
+            }
+        }
+
+        bool modify_train(char train_id[], char train_name[], char catalog[], char nstation, char nprice, char ticket_kind[][maxm], Station_Query qsta[])
+        {
+            if (!delete_train(train_id))
+                return false;
+            else
+            {
+                Train_Key train_key(id);
+                Train_Data train_data(train_name, ticket_kind, catalog, nstation, nprice);
+                train.insert(train_key, train_data);
+                for (int i = 0; i < nstation, i++)
+                {
+                    Ticket_Key ticket_key(train_id, qsta[i].station, (char)i + 1);
+                    Ticket_Data ticket_data(qsta[i]);
+                    ticket.insert(ticket_key, ticket_data);
+                }
+            }
+            return true;
+        }
+
+        /*
+        *   cal_tickets is to find the tickets with specific train_id and loc
+        */
+        bool cal_tickets(char loc1[], char loc2[], char data[], Train_Data traink, Ticket_Key tkey[], Ticket_Data tdata[], int sum, Ticket_Query &ans)
+        {
+            double sumprice[maxe];
+            short t_num[maxe];
+            memset(sumprice, 0, sizeof(sumprice));
+            memset(t_num, 0, sizeof(t_num));
+            char start[2];
+            char arrive[2];
+            for (int i = 0; i < maxl; i++)
+            {
+                if (strcmp(tkey[i].get_loc(), loc1) == 0)
+                {
+                    loc1_order = tkey[i].get_order();
+                    memcpy(start, tdata[i].get_statime(), sizeof(start));
+                    while (strcmp(tkey[i].get_loc(), loc1) != 0 && i < maxl - 1)
+                    {
+                        i++;
+                        for (int i = 0; i < maxe; i++)
+                        {
+                            sumprice[i] += tdata.get_price(i);
+                            t_num[i] = min(t_num[i], tdata[i].get_num(i));
+                        }
+                    }
+                    if (strcmp(tkey[i].get_loc, loc2) != 0)
+                        return false;
+                    else
+                    {
+                        memcpy(arrive, tdata[i].get_arrtime(), sizeof(arrive));
+                        ans = Ticket_Query(tkey.get_train_id(), loc1, start, date[], loc2, arrive, traink.get_ticket_kind(), t_num, sumprice, nprice);
+                        return true;
+                    }
+
+                }
+            }
+        }
+
+        int query_ticket(char loc1[], char loc2[], char date[], char catalog[])
+        {
+            Station_Key max_key1(loc1, 1);
+            Station_Key min_key1(loc1, 0);
+            Station_Key max_key2(loc2, 1);
+            Station_Key min_key2(loc2, 0);
+            Station_Key *loc1_train = new Station_Key[maxs];
+            Station_Key *loc2_train = new Station_Key[maxs];
 
 
-    }
+            int loc1_train_num = 0;
+            int loc2_train_num = 0;
+            int cnt = 0;
 
-    bool query_transfer() {}
+            station.get_range(min_key1, max_key1, loc1_train, loc1_train_num);
+            station.get_range(min_key2, max_key2, loc2_train, loc2_train_num);
+            for (int i = 0; i < loc1_train_num; i++)
+            {
+                for (int j = 0; j < loc2_train_num; i++)
+                {
+                    if (strcmp(loc1_train[i], loc2_train[j]) == 0)
+                    {
 
-    bool buy_ticket(unsigned int id, short num, char train_id[], char loc1[], char loc2[], char date[], char ticket_kind[])
-    {
-        if (user.find(id).privilege == 57)  return false;
-        if (ticket.)
-        Buyer_Key key(id, train_id, loc1, loc2, ticket_kind, date);
-        short data = num;
-        buyer.insert(key, data);
-    }
+                    }
+                }
+            }
 
+        }
+
+        bool query_transfer() {}
+
+        bool buy_ticket(unsigned int id, short num, char train_id[], char loc1[], char loc2[], char date[], char ticket_kind[])
+        {
+            if (user.find(id).privilege == 57)  return false;
+        }
+
+        bool clean()
+        {
+            if(remove("user.db") || remove("train.db") || remove("ticket.db") || remove("station.db"))
+                return false;
+            else return true;
+        }
 
     };
 }

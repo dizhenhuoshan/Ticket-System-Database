@@ -33,10 +33,10 @@ namespace sjtu
         }
         User_Data(const char objname[], const char objpassword[], const char objemail[], const char objphone[], const char objprivilege)
         {
-            strcpy(name, objname);
-            strcpy(password, objpassword);
-            strcpy(email, objemail);
-            strcpy(phone, objphone);
+            memcpy(name, objname, sizeof(name));
+            memcpy(password, objpassword, sizeof(password));
+            memcpy(email, objemail, sizeof(email));
+            memcpy(phone, objphone, sizeof(phone));
             privilege = objprivilege;
         }
         ~User_Data() {}
@@ -54,8 +54,8 @@ namespace sjtu
     {
     private:
         char train_name[maxn];
-        char ticket_kind[maxe][maxm];
         char catalog[maxc];
+        char ticket_kind[maxe][maxm];
         char nstation;
         char nprice;
         bool is_sale;
@@ -74,23 +74,45 @@ namespace sjtu
         Train_Data(const Train_Data &other)
         {
             memcpy(train_name, other.train_name, sizeof(train_name));
+            memcpy(catalog, other.catalog, sizeof(catalog));
             for (int i = 0; i < maxe; i++)
             {
                 memcpy(ticket_kind[i], other.ticket_kind[i], sizeof(ticket_kind[i]));
             }
-            memcpy(catalog, other.catalog, sizeof(catalog));
             nstation = other.nstation;
             nprice = other.nprice;
             is_sale = other.is_sale;
         }
-        Train_Data(const char objname[], const char objticket_kind[maxe][maxm], const char objcatalog[], const char objstation, const char objprice )
+        Train_Data(const Train_Data &other, bool flag)
         {
-            strcpy(train_name, objname);
+            memcpy(train_name, other.train_name, sizeof(train_name));
+            memcpy(catalog, other.catalog, sizeof(catalog));
             for (int i = 0; i < maxe; i++)
             {
-                strcpy(ticket_kind[i], objticket_kind[i]);
+                memcpy(ticket_kind[i], other.ticket_kind[i], sizeof(ticket_kind[i]));
             }
-            strcpy(catalog, objcatalog);
+            nstation = other.nstation;
+            nprice = other.nprice;
+            is_sale = flag;
+        }
+        Train_Data(const Train_Query &qtra)
+        {
+            memcpy(train_name, qtra.train_name, sizeof(train_name));
+            memcpy(catalog, qtra.catalog, sizeof(catalog));
+            nstation = qtra.nstation;
+            nprice = qtra.nprice;
+            for (int i = 0; i < nprice; i++)
+                memcpy(ticket_kind[i], qtra.ticket_kind[i], sizeof(ticket_kind[i]));
+            is_sale = false;
+        }
+        Train_Data(const char objname[], const char objticket_kind[][maxm], const char objcatalog[], const char objstation, const char objprice )
+        {
+            memcpy(train_name, objname, sizeof(train_name));
+            memcpy(catalog, objcatalog, sizeof(catalog));
+            for (int i = 0; i < objprice; i++)
+            {
+                memcpy(ticket_kind[i], objticket_kind[i], sizeof(ticket_kind[i]));
+            }
             nstation = objstation;
             nprice = objprice;
             is_sale = false;
@@ -120,9 +142,9 @@ namespace sjtu
     class Ticket_Data
     {
     private:
-        short num;
+        short num[maxe];
+        char arrtime[2]; //arrive time of a train on a specific station
         char statime[2]; //start time of a train on a specific station
-        char stptime[2]; //arrive time of a train on a specific station
         char stpover[2]; //stop time of a train on a specific station
         double price[maxe];
 
@@ -166,45 +188,57 @@ namespace sjtu
     public:
         Ticket_Data()
         {
+            memset(arrtime, 0, sizeof(arrtime));
             memset(statime, 0, sizeof(statime));
-            memset(stptime, 0, sizeof(stptime));
             memset(stpover, 0, sizeof(stpover));
             memset(price, 0, sizeof(price));
-            num = 2000;
+            for (int i = 0; i < maxe; i++)
+                num[i] = 2000;
         }
         Ticket_Data(const Ticket_Data &other)
         {
-            memcpy(statime, other.statime, sizeof(statime));
-            memcpy(stptime, other.stptime, sizeof(statime));
+            memcpy(arrtime, other.arrtime, sizeof(arrtime));
+            memcpy(statime, other.statime, sizeof(arrtime));
             memcpy(stpover, other.stpover, sizeof(stpover));
             memcpy(price, other.price, sizeof(price));
-            num = other.num;
+            for (int i = 0; i < maxe; i++)
+                num = other.num;
         }
         /* Waring: objprice must have exactly maxe elements for memcpy */
         Ticket_Data(const char start[], const char stop[], const char over[], const double objprice[])
         {
-            string_to_time(statime, start);
-            string_to_time(stptime, stop);
+            string_to_time(arrtime, start);
+            string_to_time(statime, stop);
             string_to_time(stpover, over);
             memcpy(price, objprice, sizeof(price));
-            num = 2000;
+            for (int i = 0; i < maxe; i++)
+                num[i] = 2000;
+        }
+        Ticket_Data(const Station_Query &qsta)
+        {
+            memcpy(arrtime, qsta.arrtime, sizeof(arrtime));
+            memcpy(statime, qsta.statime, sizeof(statime));
+            memcpy(stpover, qsta.stpover, sizeof(stpover));
+            memcpy(price, qsta.price, sizeof(price));
+            for (int i = 0; i < maxe; i++)
+                num[i] = 2000;
         }
         ~Ticket_Data() {}
 
-        bool buy_ticket(int cnt)
+        bool buy_ticket(int cnt, int kind)
         {
-            if (cnt > num)
+            if (cnt > num[i])
                 return false;
             else
             {
-                num -= cnt;
+                num -= cnt[i];
                 return true;
             }
         }
-        char* get_statime() {return time_to_string(statime);}
-        char* get_stptime() {return time_to_string(stptime);}
-        char* get_stpover() {return time_to_string(stpover);}
-        int get_num() {return num;}
+        char* get_arrtime() {return arrtime;}
+        char* get_statime() {return statime;}
+        char* get_stpover() {return stpover;}
+        int get_num(int i) {return num[i];}
         double get_price(int num) {return price[num];}
     };
 

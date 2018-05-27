@@ -60,11 +60,13 @@ namespace sjtu
     private:
         char train_id[maxm];
         char loc[maxm];
+        char order; // 1-based order;
     public:
         Ticket_Key()
         {
             memset(train_id, 0, sizeof(train_id));
             memset(loc, 0, sizeof(loc));
+            order = 0;
         }
         /*
             Special creator of the Ticket_Key.
@@ -78,66 +80,70 @@ namespace sjtu
             if (type == 0)
             {
                 memset(loc, 0, sizeof(loc));
+                order = 0;
             }
             else
             {
-                for (int i = 0; i < maxm; i++)
-                    loc[i] = 254;
+                memset(loc, 0, sizeof(loc));
+                order = 254;
             }
         }
         Ticket_Key(const Ticket_Key &other)
         {
             memcpy(train_id, other.train_id, sizeof(train_id));
             memcpy(loc, other.loc, sizeof(loc));
+            date_pos = other.date_pos;
         }
-        Ticket_Key(char objtrain_id[], char objloc[])
+        Ticket_Key(char objtrain_id[], char objloc[], char objorder)
         {
             memcpy(train_id, objtrain_id, sizeof(train_id));
             memcpy(loc, objloc, sizeof(loc));
+            order = objorder;
         }
         ~Ticket_Key() {}
 
         bool operator< (const Ticket_Key &other) const
         {
-            if (strcmp(train_id, other.train_id) > 0)   return false;
+            if (strcmp(train_id, other.train_id) >= 0)   return false;
             if (strcmp(train_id, other.train_id) < 0)   return true;
-            if (strcmp(loc, other.loc) > 0) return false;
-            if (strcmp(loc, other.loc) < 0) return true;
+            if (order >= obj.order) return false;
+            if (order < obj.order) return true;
         }
 
         bool operator> (const Ticket_Key &other) const
         {
-            if (strcmp(train_id, other.train_id) > 0)   return true;
+            if (strcmp(train_id, other.train_id) >= 0)   return true;
             if (strcmp(train_id, other.train_id) < 0)   return false;
-            if (strcmp(loc, other.loc) > 0) return true;
-            if (strcmp(loc, other.loc) < 0) return false;
+            if (order <= obj.order) return true;
+            if (order > obj.order) return false;
         }
 
         bool operator<= (const Ticket_Key &other) const
         {
             if (strcmp(train_id, other.train_id) > 0)   return false;
             if (strcmp(train_id, other.train_id) <= 0)   return true;
-            if (strcmp(loc, other.loc) > 0) return false;
-            if (strcmp(loc, other.loc) <= 0) return true;
+            if (order > obj.order) return false;
+            if (order <= obj.order) return true;
         }
 
         bool operator>= (const Ticket_Key &other) const
         {
             if (strcmp(train_id, other.train_id) >= 0)   return true;
             if (strcmp(train_id, other.train_id) < 0)   return false;
-            if (strcmp(loc, other.loc) >= 0) return true;
-            if (strcmp(loc, other.loc) < 0) return false;
+            if (order >= obj.order) return true;
+            if (order < obj.order) return false;
         }
 
         bool operator== (const Ticket_Key &other)
         {
             if (strcmp(train_id, other.train_id) != 0)  return false;
-            if (strcmp(loc, other.loc) != 0)    return false;
+            if (order != other.order)    return false;
             return true;
         }
 
         char* get_train_id() {return train_id;}
-        char* get_loc() {return loc;}
+        char* get_loc()      {return loc;}
+        char get_order()     {return order;}
     };
 
     /* Train_Key is the key used for information of a train except the station*/
@@ -197,13 +203,13 @@ namespace sjtu
     private:
         char loc[maxm];
         char train_id[maxm];
-        char train_type;
+        char order;
     public:
         Station_Key()
         {
             memset(loc, 0, sizeof(loc));
             memset(train_id, 0, sizeof(train_id));
-            train_type = 0;
+            order = 0;
         }
         /*
             Special creator:
@@ -223,19 +229,19 @@ namespace sjtu
                 for (int i = 0; i < maxm; i++)
                     loc[i] = 254;
             }
-            train_type = 0;
+            order = 0;
         }
         Station_Key(const Station_Key &other)
         {
             memcpy(loc, other.loc, sizeof(loc));
             memcpy(train_id, other.train_id, sizeof(train_id));
-            train_type = other.train_type;
+            order = other.order;
         }
-        Station_Key(const char objloc[], const char objtrain_id[], const char objtrain_type)
+        Station_Key(const char objloc[], const char objtrain_id[], const char objorder)
         {
             memcpy(loc, objloc, sizeof(loc));
             memcpy(train_id, objtrain_id, sizeof(train_id));
-            train_type = objtrain_type;
+            order = objorder;
         }
         ~Station_Key() {}
 
@@ -278,7 +284,7 @@ namespace sjtu
 
         char* get_loc() {return loc;}
         char* get_train_id() {return train_id;}
-        char get_train_type() {return train_type;}
+        char get_order() {return order;}
     };
 
     /* Buyer_Key is a special key for the buyer */
