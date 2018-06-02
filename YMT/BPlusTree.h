@@ -10,7 +10,7 @@
 
 namespace sjtu {
     template<class KeyType, class ValType>
-    class UniqueBPlusTree {
+    class BPlusTree {
         friend class debugger;
 
     private:
@@ -22,7 +22,6 @@ namespace sjtu {
             retT(bool a, bool b): success(a), modified(b) { }
             retT() {}
         };
-
 
         char filename[50];
         BufferManager<KeyType, ValType> bm;
@@ -137,6 +136,10 @@ namespace sjtu {
 
                             // 写入儿子，即使右儿子没什么卵用也暂时写入它。
                             bm.write_block(*l_node);
+
+                            // dump right child into trash can.
+                            r_node->next = bm.trash_off;
+                            bm.trash_off = r_node->addr;
                             bm.write_block(*r_node);
 
                             // 删除成功。
@@ -260,6 +263,11 @@ namespace sjtu {
                             bm.write_block(*l_node);
                             bm.write_block(*r_node);
 
+                            // dump right child into trash can.
+                            r_node->next = bm.trash_off;
+                            bm.trash_off = r_node->addr;
+                            bm.write_block(*r_node);
+
                             // 删除成功。
                             cnt -= 2;
                             return retT(true, true);
@@ -374,8 +382,15 @@ namespace sjtu {
             short i = cur.search_sup(K);
 
             // check K existence.
-            if (i != -1 && i != 1 && cur.keys[i - 1] == K)
-                return false;
+            // if no key greater than K, check the last one.
+            if(i == -1) {
+                if(cur.keys[cur.keys.size() - 1] == K)
+                    return false;
+            }
+            else {
+                if(i != 0 && cur.keys[i - 1] == K)
+                    return false;
+            }
 
             // insert.
             if (i == -1)     // no sup, insert in the back.
@@ -494,7 +509,25 @@ namespace sjtu {
         }
 
     public:
-        explicit UniqueBPlusTree(const char *fname) {
+        BPlusTree() {
+            K_byte = sizeof(KeyType), V_byte = sizeof(ValType);
+            cnt = 0;
+
+            /**
+             * tree utility is stored in file head, which is followed by a leaf node (the first node in an file is always leaf node).
+             * Note key and child number differ by 1 in branch. */
+            leaf_degree = (blockSize - tree_utility_byte - node_utility_byte) / (K_byte + V_byte);
+            branch_degree = (blockSize - node_utility_byte + K_byte) / (sizeof(offsetNumber) + K_byte);
+
+/*        #ifdef LOG
+            std::cout << "leaf degree: " << leaf_degree << " branch degree: " << branch_degree << std::endl;
+        #endif*/
+
+/*            if (leaf_degree == 0)
+                std::cerr << "leaf degree is 0" << std::endl;*/
+        }
+
+        explicit BPlusTree(const char *fname) {
             strcpy(filename, fname);
             bm.set_fileName(fname);
 
@@ -515,11 +548,15 @@ namespace sjtu {
                 std::cerr << "leaf degree is 0" << std::endl;*/
         }
 
-        ~UniqueBPlusTree() {
+        ~BPlusTree() {
             if (bm.is_opened())
                 bm.close_file();
         }
 
+        void set_filename(const char *fname) {
+            strcpy(filename, fname);
+            bm.set_fileName(fname);
+        }
         /**
          * to maintain database integrity, file isn't opened in constructor.
          * use a separate method to read or create it.
@@ -571,7 +608,7 @@ namespace sjtu {
                 bm.get_block_by_offset(lowLeaf.next, lowLeaf);
                 pos = 0;
             }
-            if(lowLeaf.keys[pos] >= high) {
+            if(high <= lowLeaf.keys[pos]) {
                 fprintf(stderr, "nothing between low and high\n");
                 len = 0;
                 --cnt;
@@ -761,6 +798,11 @@ namespace sjtu {
                 if(root.isLeaf) {
                     if(root.keys.size() == 0) {
                         bm.root_off = bm.head_off = bm.tail_off = -1;
+
+                        // dump root into trash can.
+                        root.next = bm.trash_off;
+                        bm.trash_off = root.addr;
+                        bm.write_block(root);
                     }
                     if(ret_info.modified)
                         bm.write_block(root);
@@ -773,6 +815,11 @@ namespace sjtu {
 //                    #endif
                     if(root.childs.size() == 1) {
                         bm.root_off = root.childs[0];
+
+                        // dump root into trash can.
+                        root.next = bm.trash_off;
+                        bm.trash_off = root.addr;
+                        bm.write_block(root);
                     }
                     else
                         if(ret_info.modified)
@@ -789,6 +836,20 @@ namespace sjtu {
             return bm.logicSize;
         }
 
+        /**
+         * get last element
+         * if empty, return a ValType got by default constructor. */
+         ValType back() {
+             if(size() == 0) {
+                 return ValType();
+             }
+             else {
+                 Node &ret = pool[cnt++];
+                 bm.get_tail(ret);
+                 cnt--;
+                 return ret.vals[ret.vals.size() - 1];
+             }
+         }
         /** perform a level order traversal for B tree. */
         #ifdef LOG
         struct qElem {
