@@ -1,0 +1,3 @@
+/Users/qiansucheng/Desktop/gittest/data-structure/database/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/qiansucheng/Desktop/gittest/data-structure/database/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/qiansucheng/Desktop/gittest/data-structure/database/cmake-build-debug/CMakeFiles/myYMT.dir
