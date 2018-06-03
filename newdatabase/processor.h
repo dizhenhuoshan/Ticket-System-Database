@@ -52,7 +52,6 @@ namespace sjtu {
             init_open_file();
             clean = false;
         }
-
         ~processor() {
             if (!clean)
                 close_file();
@@ -122,6 +121,19 @@ namespace sjtu {
                         printf("%d\n", 0);
                 }
 
+                else if (cmd == DELETE_TRAIN) {
+                    if (task_delete_train())
+                        printf("%d\n", 1);
+                    else
+                        printf("%d\n", 0);
+                }
+                else if (cmd == MODIFY_TRAIN) {
+                    if (task_modify_train())
+                        printf("%d\n", 1);
+                    else
+                        printf("%d\n", 0);
+                }
+
                 else if (cmd == CLEAN) {
                     if(task_clean())
                         printf("%d\n", 1);
@@ -151,6 +163,8 @@ namespace sjtu {
          * when judge, turn off all robust check. */
         bool task_add_train();
         bool task_sale_train();
+        bool task_delete_train();
+        bool task_modify_train();
         /**
          * query information on a train with specific train_id.
          * if train_id doesn't exist, return false.
