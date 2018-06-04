@@ -41,7 +41,7 @@ namespace sjtu {
         }
 
         /// overload huge amount of functions.
-        bool operator<(const station_key &other) {
+        bool operator<(const station_key &other) const {
             int cmp;
 
             cmp = cstrcmp(location, other.location);
@@ -67,14 +67,14 @@ namespace sjtu {
             }
         }
 
-        bool operator==(const station_key &other) {
+        bool operator==(const station_key &other) const {
             return cstrcmp(location, other.location) == 0 &&
                    train_cat == other.train_cat &&
                    strcmp(train_id, other.train_id) == 0;
         }
 
         /// slightly modify operator<.
-        bool operator<=(const station_key &other) {
+        bool operator<=(const station_key &other) const {
             int cmp;
 
             cmp = cstrcmp(location, other.location);
@@ -100,7 +100,7 @@ namespace sjtu {
             }
         }
 
-        bool operator!=(const station_key &other) {
+        bool operator!=(const station_key &other) const {
             return !(*this == other);
         }
     };

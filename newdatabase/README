@@ -32,4 +32,6 @@ Note that there's no unnecessary information stored in those databases.
 Extract common functions: 
 	1. get_train_info(train_id). 
 	2. query_ticket_per_catalog. 
-	3. get tickets left (minimum along the path) given two locations and date. 
+	3. get tickets left (minimum along the path) given two locations and date.
+
+注意一下，我在买票的时候是这样操作的。买票的时候系统会给出列车出发的日期，买票要更新这辆列车的剩余车票数量，还要更新用户买票的信息。我再更新剩余车票数量的时候为了sychronize信息，是把列车出发的日期划归到这辆列车始发站的出发日期存储的。在存储用户买票信息的时候，是存储了这辆车子出发站的日期。在输出的时候，既要输出出发日期，也要输出到达日期。

@@ -82,6 +82,9 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/Users/qiansucheng/Desktop/git_rpst/Ticket-System-Database/newdatabase/bill_kv.h">
+			<Option target="newdatabase"/>
+		</Unit>
 		<Unit filename="/Users/qiansucheng/Desktop/git_rpst/Ticket-System-Database/newdatabase/bptree/BPlusTree.h">
 			<Option target="newdatabase"/>
 		</Unit>
@@ -113,6 +116,9 @@
 			<Option target="newdatabase"/>
 		</Unit>
 		<Unit filename="/Users/qiansucheng/Desktop/git_rpst/Ticket-System-Database/newdatabase/station_kv.h">
+			<Option target="newdatabase"/>
+		</Unit>
+		<Unit filename="/Users/qiansucheng/Desktop/git_rpst/Ticket-System-Database/newdatabase/ticket_kv.h">
 			<Option target="newdatabase"/>
 		</Unit>
 		<Unit filename="/Users/qiansucheng/Desktop/git_rpst/Ticket-System-Database/newdatabase/train_id_kv.h">

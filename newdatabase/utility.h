@@ -19,11 +19,11 @@ namespace sjtu {
         tmp = ' ';
 
         // skip spaces.
-        while(tmp == ' ' || tmp == '\n') {
+        while (tmp == ' ' || tmp == '\n') {
             tmp = (char) getchar();
         }
         // check end of file.
-        if(tmp == EOF) {
+        if (tmp == EOF) {
             str[0] = '\0';
             return false;
         }
@@ -34,13 +34,12 @@ namespace sjtu {
         do {
             ++i;
             str[i] = (char) getchar();
-        } while(str[i] != ' ' && str[i] != '\n' && str[i] != EOF);
+        } while (str[i] != ' ' && str[i] != '\n' && str[i] != EOF);
         // when str[i] == ' ', break the loop.
-        if(str[i] == EOF) {
+        if (str[i] == EOF) {
             str[i] = '\0';
             return false;
-        }
-        else {
+        } else {
             str[i] = '\0';
             return true;
         }
@@ -55,11 +54,11 @@ namespace sjtu {
         tmp = ' ';
 
         // skip spaces.
-        while(tmp == ' ' || tmp == '\n') {
+        while (tmp == ' ' || tmp == '\n') {
             fread(&tmp, sizeof(char), 1, fp);
         }
         // check end of file.
-        if(tmp == EOF) {
+        if (tmp == EOF) {
             str[0] = '\0';
             return false;
         }
@@ -70,13 +69,12 @@ namespace sjtu {
         do {
             ++i;
             fread(&str[i], sizeof(char), 1, fp);
-        } while(str[i] != ' ' && str[i] != '\n' && str[i] != EOF);
+        } while (str[i] != ' ' && str[i] != '\n' && str[i] != EOF);
         // when str[i] == ' ', break the loop.
-        if(str[i] == EOF) {
+        if (str[i] == EOF) {
             str[i] = '\0';
             return false;
-        }
-        else {
+        } else {
             str[i] = '\0';
             return true;
         }
@@ -90,7 +88,7 @@ namespace sjtu {
         short hours;
         short minutes;
 
-        if(str[0] == 'x')
+        if (str[0] == 'x')
             return -1;
 
         hours = 0;
@@ -104,34 +102,27 @@ namespace sjtu {
     }
 
     void time_to_str(const int &time, char *str) {
-        if(time == -1) {
+        if (time == -1) {
             strcpy(str, "xx:xx");
-        }
-        else {
+        } else {
             int hours;
             int minutes;
 
             minutes = time % 60;
             hours = time / 60;
 
-            str[0] = (char)((hours / 10) + '0');
-            str[1] = (char)((hours % 10) + '0');
+            str[0] = (char) ((hours / 10) + '0');
+            str[1] = (char) ((hours % 10) + '0');
             str[2] = ':';
-            str[3] = (char)((minutes / 10) + '0');
-            str[4] = (char)((minutes % 10) + '0');
+            str[3] = (char) ((minutes / 10) + '0');
+            str[4] = (char) ((minutes % 10) + '0');
             str[5] = '\0';
         }
     }
 
     int date_to_int(const char *str) {
         int date;
-        int cnt = 0;
         date = 0;
-
-        date = date * 10 + (str[0] - '0');
-        date = date * 10 + (str[1] - '0');
-        date = date * 10 + (str[2] - '0');
-        date = date * 10 + (str[3] - '0');
 
         date = date * 10 + (str[5] - '0');
         date = date * 10 + (str[6] - '0');
@@ -141,11 +132,12 @@ namespace sjtu {
 
         return date;
     }
+
     void date_to_str(const int &time, char *str) {
-        str[0] = (char) ((time / 10000000) + '0');
-        str[1] = (char) ((time / 1000000) % 10 + '0');
-        str[2] = (char) ((time / 100000) % 10 + '0');
-        str[3] = (char) ((time / 10000) % 10 + '0');
+        str[0] = '2';
+        str[1] = '0';
+        str[2] = '1';
+        str[3] = '8';
         str[4] = '-';
         str[5] = (char) ((time / 1000) % 10 + '0');
         str[6] = (char) ((time / 100) % 10 + '0');
@@ -153,8 +145,9 @@ namespace sjtu {
         str[8] = (char) ((time / 10) % 10 + '0');
         str[9] = (char) (time % 10 + '0');
     }
-	void print_double(double f) {
-        if(f == 0)
+
+    void print_double(double f) {
+        if (f == 0)
             printf("0.0");
         else {
             printf("%.6lf", f);
@@ -163,23 +156,122 @@ namespace sjtu {
 
     int cstrcmp(const char *str1, const char *str2) {
         int i = 0;
-        while(i < 100) {
-            if(str1[i] == '\0' || str2[i] == '\0') {
-                if(str1[i] == '\0' && str2[i] == '\0')
+        while (i < 100) {
+            if (str1[i] == '\0' || str2[i] == '\0') {
+                if (str1[i] == '\0' && str2[i] == '\0')
                     return 0;
-                else if(str1[i] == '\0')
+                else if (str1[i] == '\0')
                     return -1;
                 else
                     return 1;
             }
-            if(str1[i] < str2[i])
+            if (str1[i] < str2[i])
                 return -1;
-            else if(str1[i] > str2[i])
+            else if (str1[i] > str2[i])
                 return 1;
             ++i;
         }
         return 0;
     }
+
+    /**
+     * modify the date_str by offset days.
+     * don't consider the change of year, and assume no 闰年。*/
+    void modify_date(char *date_str, const char &offset) {
+        if(offset == 0)
+            return;
+
+        // extract month and day.
+        int month, day;
+        month = day = 0;
+        day = (date_str[9] - '0') + (date_str[8] - '0') * 10;
+        month = (date_str[6] - '0') + (date_str[5] - '0') * 10;
+
+        // add offset, and then normalize it.
+        day += offset;
+        if(day <= 0) {
+            if(month == 1) {
+                month = 12, day = 31 + day;
+            }
+            else if(month == 2) {
+                month = 1, day = 31 + day;
+            }
+            else if(month == 3) {
+                month = 2, day = 28 + day;
+            }
+            else if(month == 4) {
+                month = 3, day = 31 + day;
+            }
+            else if(month == 5) {
+                month = 4, day = 30 + day;
+            }
+            else if(month == 6) {
+                month = 5, day = 31 + day;
+            }
+            else if(month == 7) {
+                month = 6, day = 30 + day;
+            }
+            else if(month == 8) {
+                month = 7, day = 31 + day;
+            }
+            else if(month == 9) {
+                month = 8, day = 31 + day;
+            }
+            else if(month == 10) {
+                month = 9, day = 30 + day;
+            }
+            else if(month == 11) {
+                month = 10, day = 31 + day;
+            }
+            else if(month == 12) {
+                month = 11, day = 30 + day;
+            }
+        }
+        else if(day > 28) {
+            if(month == 1 && day > 31) {
+                month = 2, day -= 31;
+            }
+            else if(month == 2 && day > 28) {
+                month = 3, day -= 28;
+            }
+            else if(month == 3 && day > 31) {
+                month = 4, day -= 31;
+            }
+            else if(month == 4 && day > 30) {
+                month = 5, day -= 30;
+            }
+            else if(month == 5 && day > 31) {
+                month = 6, day -= 31;
+            }
+            else if(month == 6 && day > 30) {
+                month = 7, day -= 30;
+            }
+            else if(month == 7 && day > 31) {
+                month = 8, day -= 31;
+            }
+            else if(month == 8 && day > 31) {
+                month = 9, day -= 31;
+            }
+            else if(month == 9 && day > 30) {
+                month = 10, day -= 30;
+            }
+            else if(month == 10 && day > 31) {
+                month = 11, day -= 31;
+            }
+            else if(month == 11 && day > 30) {
+                month = 12, day -= 30;
+            }
+            else if(month == 12 && day > 31) {
+                month = 1, day -= 31;
+            }
+        }
+
+        date_str[9] = (char) ((day % 10) + '0');
+        date_str[8] = (char) ((day / 10) + '0');
+        date_str[6] = (char) ((month % 10) + '0');
+        date_str[5] = (char) ((month / 10) + '0');
+    }
+
 };
 
 #endif //MYYMT_UTILITY_H

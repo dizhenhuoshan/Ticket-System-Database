@@ -42,10 +42,11 @@ namespace sjtu {
             // read in prices for each kind of seat.
             for (int i = 0; i < seat_catalog_num; ++i) {
                 // skip ¥.
-                getchar();
-                getchar();
-                getchar();
-                getchar();
+                char tmp = (char) getchar();
+                while(tmp < '0' || tmp > '9') {
+                    tmp = (char) getchar();
+                }
+                ungetc(tmp, stdin);
                 scanf("%lf", &price[i]);
                 /*
                 int offset = 0;     // we want pure double.
@@ -101,7 +102,7 @@ namespace sjtu {
                 print_double(price[j]);
                 printf(" ");
             }
-            printf("date_offset %d", (int)date_offset);
+            // printf("date_offset %d", (int)date_offset);
             printf("\n");
         }
     };

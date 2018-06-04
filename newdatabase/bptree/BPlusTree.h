@@ -590,7 +590,7 @@ namespace sjtu {
 
         /** get data lies between low key and high key, excluding two key values.
          * return value array and data length. */
-        void get_range(KeyType low, KeyType high, ValType arr[], int &len) {
+        void get_range(const KeyType &low, const KeyType &high, ValType arr[], int &len, KeyType *arr_k = nullptr, bool get_key = false) {
             len = 0;
             Node &lowLeaf = pool[cnt++];
             search_to_leaf(low, lowLeaf);
@@ -618,7 +618,10 @@ namespace sjtu {
 
             // traverse and fill arr.
             while(lowLeaf.keys[pos] < high) {
-                arr[len++] = lowLeaf.vals[pos];
+                arr[len] = lowLeaf.vals[pos];
+                if(get_key)
+                    arr_k[len] = lowLeaf.keys[pos];
+                ++len;
                 // update leaf and pos for the next elem.
 
                 // jump to next leaf.
@@ -632,8 +635,9 @@ namespace sjtu {
                         pos = 0;
                     }
                 }
-                else
+                else {
                     ++pos;
+                }
             }
             --cnt;
         }

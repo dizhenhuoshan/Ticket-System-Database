@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_executable(newdatabase main.cpp
         interpreter.h
-        processor.h
         utility.h
         ./bptree/BPlusTree.h
         ./bptree/BufferManager.h
@@ -18,4 +17,5 @@ add_executable(newdatabase main.cpp
         train_id_kv.h
         station_kv.h
         const_recorder.h
-        )
+        processor.h
+        ticket_kv.h bill_kv.h)
