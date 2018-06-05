@@ -1,0 +1,37 @@
+This train-ticket-system is composed of several database units, which provides functionalities for:
+	insert/delete/modify user information.
+	insert/delete/modify train information.
+	query all non-trivial train tickets given date and location. 
+	buy tickets and store transactions information given date and location. 
+
+The first problem is addressed by user_db database, which is a B+ tree that stores user information, with key "user_id" and value "privilege, name, password, email, phone". 
+
+The second problem is solved by train_pile_storer. Since the train information isn't structured, B+ tree isn't suitable for that. Meanwhile, note that almost no changes need to be applied to trains' basic information, we can store them in a data pile. And search particular trains via its file offset, therefore we need a train_id_db providing map from train_offset to train_information.
+
+For the third problem, we query for all train passing a given location, and get the intersected train for further inspection. Because of that, we need a map from location to train_id(of course may plus some additional information). Therefore we have location_db. 
+Then, when we get a particular train(get both train_id and train's detailed info), we need to output the number of tickets from station1 to station2 that has been sold. This question is not a that hard one because train_id is fixed, and we are considering one specific train. Because of that, we need to record how many tickets have been sold for a train on a date. 
+* Because the date of one train on the lane may change due to the variation of its position, we always represent date in ticket_db with the starting date of the very first station. We need to store date offset for each station. (where can we store it?). 
+
+To deal with the last problem, we need to setup a bill_db to record all bill records for every user. And simultaneously change ticket_db. 
+
+* query transfer can be solved clearly using previous building blocks. 
+
+* because almost every command needs train basic information, we always minimize data duplication in other databases, except for special cases. 
+
+* query_order is a rare command, try to simplify bill_db to boost buy_ticket. 
+
+To sum up: 
+	1. user_db.			key: user_id (int);												val: privilege + name + password + email + phone
+	2. train_info_db.	key: pile file offset (int);									val: train_info blabla... + date offset!!!
+	3. train_id_db.		key: train_id (char[]);											val: pile file offset (int) + whether on sale (bool) 
+	4. station_db.		key: station name (char[]) + train_cat + train_id (char[]);		val: train_id + location index (char)
+	5. ticket_db.		key: train_id + date (head start) (int) + station index (char);	val: (ticket sold) * 5 (short)
+	6. bill_db.			key: user_id + date + catalog.									val: train_id + location index1/2 + (ticket bought) * 5
+Note that there's no unnecessary information stored in those databases.
+
+Extract common functions: 
+	1. get_train_info(train_id). 
+	2. query_ticket_per_catalog. 
+	3. get tickets left (minimum along the path) given two locations and date.
+
+注意一下，我在买票的时候是这样操作的。买票的时候系统会给出列车出发的日期，买票要更新这辆列车的剩余车票数量，还要更新用户买票的信息。我再更新剩余车票数量的时候为了sychronize信息，是把列车出发的日期划归到这辆列车始发站的出发日期存储的。在存储用户买票信息的时候，是存储了这辆车子出发站的日期。在输出的时候，既要输出出发日期，也要输出到达日期。
